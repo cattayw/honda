@@ -1,0 +1,47 @@
+# Planted-gap answer key — never commit
+gaps/sealed/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.runtime/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Experiment outputs
+outputs/
+runs/
+results/
+*.ckpt
+*.pt
+*.safetensors
+wandb/
+mlruns/
+
+# Data, rollouts, activations (keep manifests, not blobs)
+data/
+# The dashboard's route outcomes are a 35 KB source file it imports, not a dataset.
+!dashboard/src/data/
+rollouts/
+activations/
+*.h5
+*.npz
+*.zarr/
+
+# Model checkpoints and containers — large, never in git
+checkpoints/
+*.sif
+*.simg
+*.tar
+
+# Local
+.env
+.DS_Store
+video/assets/
+video/renders/
+video/node_modules/
+video/review/
+video/.hyperframes/

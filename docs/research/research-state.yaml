@@ -1,0 +1,79 @@
+# Autoresearch state. Read this and findings.md first on every loop tick.
+goal: >-
+  Show that the discovery SDK, run on CARLA rollouts of SimLingo, recovers failures we planted on purpose
+  (P4, P7, P8), and how. End with a step-by-step explainer video.
+su_budget: 10000             # raised from 6000 by Jerry, 2026-11-03
+neurips_bar: >-
+  Agent's working definition, not from the PRD: two or more interactional gaps pass PRD 9.1; decoys pass; every method and baseline scored on a blind
+  pool with the preregistered go/no-go; causal checks; a full paper draft with verified citations. The blind pool needs Chris (key, sign-off); its SU cost has not been rechecked against the 10000 budget.
+su_measure: >-
+  sacct -u imhaohao -S 2026-10-31T22:30 CPUTimeRAW x 3.67 / 3600 (check_usage.sh counts running jobs at their
+  full time limit, so it overstates mid-run)
+su_spent: 5453               # 2026-11-06 03:30, the study's named jobs; su_measure now also counts Jerry's other jobs
+started: 2026-10-31T22:40-07:00
+
+hypotheses:
+  H1:   {status: tier1_untested, note: token SAEs misfit frame means; M2 valid null}
+  H1b:  {status: done_layer10, result: "P4 recovered 0.574 (A yes, B yes); P7 0.207, P8 0.276 not",
+         data: docs/research/data/h1b_layer10.json, todo: layer 14 replication when its SAEs finish}
+  H2:   {status: done_layer10, result: "stale latent: B7 recovers P7 0.906; M1 unchanged (3 s window blind spot)",
+         data: docs/research/data/h2_layer10.json, rule: failed for M1}
+  H3:   {status: done, kind: confirmatory, protocol: docs/research/experiments/h3-confirm-fresh-pilots/protocol.md,
+         result: "P4 M1 0.557 (A yes, B yes); P7 M1 0.340 (A no); P7 B7 stale 0.889 (A' yes); plain B7 0.541 is near rollout length 0.48",
+         data: [docs/research/data/h3_layer10_plain.json, docs/research/data/h3_layer10_stale.json]}
+  H5:   {status: done, kind: screen, protocol: docs/research/experiments/h5-interactional-screen/protocol.md,
+         result: "no gap passes: P11 tested, excess 2 of 3; P10 and P12 untested (check 3 of 5), excess 2 of 3 either way",
+         data: docs/research/data/h5_manipulation.json, note: "C24 check counts early braking as no hazard; not overridden"}
+  H6:   {status: done, kind: screen, protocol: docs/research/experiments/h6-later-crossing/protocol.md,
+         result: "P13 fails: excess 0 of 3 on 10 pairs, check held 9 of 10, one walker struck per arm", data: docs/research/data/h6_check.json}
+  H7:   {status: done, kind: screen, protocol: docs/research/experiments/h7-traffic-pressure/protocol.md,
+         result: "P14 passes its screen (excess 4 of 3, 9 pairs); P15 excess 0, P16 excess 1; all checks hold; solvability not yet checked",
+         data: docs/research/data/h7_check.json}
+  H8:   {status: done, kind: solvability, protocol: docs/research/experiments/h8-expert-check/protocol.md,
+         result: "P14 solvable: expert collision-free on 8 of 9 slice routes and 4 of 5 slice-only roads; fails the success label on 4 of 9", data: docs/research/data/h8_expert_p14.json}
+  H9:   {status: done, kind: full_pilot, protocol: docs/research/experiments/h9-p14-full-pilot/protocol.md,
+         result: "P14 fails PRD 9.1: 30 of 58 vs 21 of 58, uplift 15.5, ratio 1.43, Fisher p 0.13; C23 17 vs 8, McNemar p 0.11", data: docs/research/data/h9_h10_check.json}
+  H10:  {status: done, kind: screen, protocol: docs/research/experiments/h10-second-interactional/protocol.md,
+         result: "P19 passes its screen (excess 4 on 10 pairs); P17 excess 0; P18 excess 1", data: docs/research/data/h9_h10_check.json}
+  H11:  {status: done, kind: full_pilot, protocol: docs/research/experiments/h11-p19-expert-and-pilot/protocol.md,
+         step_1: "P19 solvable: expert collision-free on 9 of 9 slice routes and 4 of 4 slice-only roads",
+         result: "P19 passes PRD 9.1: 42 of 53 vs 7 of 48, uplift 64.7, ratio 5.43, Fisher p 4e-11; C23 32 vs 0 on 46 pairs, McNemar p 5e-10, under its 60-pair floor; check 48 of 53",
+         data: [docs/research/data/h11_expert_p19.json, docs/research/data/h11_p19_main.json, results/savio/step5-pilot-p19-main/]}
+  H12:  {status: done, kind: dev_evaluation, protocol: docs/research/experiments/h12-methods-on-p19/protocol.md,
+         result: "P19 M1 0.705 (A yes, B no; median 0.375, 0 of 6 seeds beat B2 0.857); P4 M1 0.490 (A no, B yes); P7 stale 0.889; B2 breaks Step 5's single-factor condition, so P19 is enumerable on a realistic pool",
+         data: [docs/research/data/h12_layer10_plain.json, docs/research/data/h12_layer10_stale.json]}
+
+  H13:  {status: screen_failed, kind: screen, amended: 2026-11-04, protocol: docs/research/experiments/h13-cross-family-gap/protocol.md,
+         result: "pre-check simulated B2 0.24 to 0.33 for P20; 0.801 on P19 against 0.857 measured; amended screen arrays 40843139, 40849201, 40859836, scoring 40859837: check holds, 0 slice-only against 4 neighbourhood-only on 10 pairs, fails", data: [docs/research/data/h13_b2_precheck.json, docs/research/data/h13_p20_amended_check.json, docs/research/data/h13_p20_amended_efficacy.json]}
+  H14:  {status: offline_stopped_mask_failed, kind: paired_closed_loop, protocol: docs/research/experiments/h14-route-markers/protocol.md,
+         result: "offline mask check failed, 85 of 118 dots and 13 of 50 frames touching, so no replay; Stage 1 waits for Chris; effect of --debug 2 unmeasured", data: [docs/research/data/h14_power.json, docs/research/data/h14_mask_check.json]}
+  H15:  {status: done_no_bugs, kind: dry_run, protocol: docs/research/experiments/h15-scoring-dry-run/protocol.md,
+         result: "scoring path ran end to end on a throwaway public key, 0 bugs; not a verdict; residualized M1 on P19 best 0.689, median 0.540, exploratory", data: docs/research/data/h15_dry_run.json}
+  H16:  {status: built_held, kind: baseline, protocol: docs/research/experiments/h16-b7-rollout-free/protocol.md,
+         result: "not run; held for Jerry and Chris because B7-pool already reads T2 fires on stored P19 data"}
+  H18:  {status: done, kind: dry_run_control, protocol: docs/research/experiments/h18-residual-controls/protocol.md,
+         result: "needs_vision on M1 raw P19: shuffle 0.447, variance-matched 0.436, halfway 0.4575; mean removal alone gives 44% of the gain and lifts B7-pool on P19 to median 0.666; exploratory", data: docs/research/data/h18_result.json}
+  H19:  {status: done, kind: dry_run_diagnosis, protocol: docs/research/experiments/h19-m2-settings/protocol.md,
+         result: "planted_not_recovered: M2 groups a planted 25-failure lead-distance shift under none of 16 settings, so its zero is uninformative; default 0 axes; first plant invalid and withdrawn", data: [docs/research/data/h19_result.json, docs/research/data/h19_first_plant.json]}
+  H20:  {status: done, kind: dry_run_control, protocol: docs/research/experiments/h20-centring-second-pool/protocol.md,
+         result: "replicates: mean removal moves B7-pool on P8 by +0.149 and M1 raw on P4 by -0.088 on H1's pool; see C37", data: docs/research/data/h20_result.json}
+  H17:  {status: done, kind: replay_rehearsal, protocol: docs/research/experiments/h17-causal-rehearsal/protocol.md,
+         result: "above_random_failing_not_shown_larger on P4's axis; speed clears, route does not; not Step 9's verdict", data: docs/research/data/h17_result.json}
+  H21:  {status: queued, kind: closed_loop_collection, protocol: docs/research/experiments/h21-fail2drive-all/protocol.md,
+         result: "200 Fail2Drive routes queued: test task 40999650, rest 41000885 (afterok), scoring 41000886 (afterany); A40 start estimated 2026-11-08 01:15"}
+
+local:
+  slim_shards: scratchpad h1-slim (750 shards, 7.8 GB); h3-slim/{wave3,p4c,p7c} (439 shards)
+  frame_mean_saes: scratchpad sae-frames (H1 pool, L10 and L14); scratchpad h3/sae (H3 pool, 18 runs)
+
+video:
+  status: final               # video/renders/final.mp4, 130 s; source committed 3f65e0c
+  voice: macOS Daniel, kept by Jerry 2026-11-01; no ElevenLabs take
+
+next_actions:
+  - Jerry and Chris review H14 and CONFLICTS C35 (route markers); tell Chris first
+  - decide with Jerry and Chris what P19 counts as, since B2 breaks Step 5's single-factor condition on it (H12), before spending more
+  - finish the study (Jerry, 2026-11-04); end states and wording are in CONFLICTS C34; Chris asks not to close at A (issue 8)
+  - measure the route-marker effect (WHAT_BROKE 2026-11-03); settle --debug before any frozen pool
+  - tell Chris P19 may overlap the sealed pool, since public predicates are excluded from the key
+  - P8: lag-alignment probe idea noted (needs state labels); not built

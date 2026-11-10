@@ -1,0 +1,27 @@
+# src/harness
+
+Config schema, scoring, metrics, and (later) the Ray runner and results DB.
+
+`PREREGISTRATION.md` and `KEY_COMMITMENT.txt` live here too, next to the code
+that reads them.
+
+## Contents
+
+- `PREREGISTRATION.md` — frozen before the test pool is generated. The go/no-go
+  rule (`PRD.md` §13.1) and every pre-registered threshold live here. Once
+  tagged, it is not edited; a change is a new version and gets reported as one.
+- `KEY_COMMITMENT.txt` — `sha256(key || salt)`, committed before the test pool
+  exists. This is what makes the blind claim checkable (`PRD.md` §9.1).
+
+- `shards.py` — the shard contract: the files a policy adapter writes per rollout,
+  which every method, baseline and the scoring read (`PRD.md` §8.2). `python -m
+  harness.shards <dir>` checks a directory of shards against it.
+- `failure_time.py` — when a failing rollout failed, for the methods' failure windows.
+- `scoring_run.py` — one scoring run: emitted directive files plus a committed key give one report (Step 8's
+  `score-v1`; `docs/research/experiments/h15-scoring-dry-run/` is its dry run).
+
+## Rules
+
+- Every experiment is a YAML config under `configs/`. Results are keyed by
+  config content hash.
+- Nothing here imports from `gaps/sealed/`. CI enforces it.

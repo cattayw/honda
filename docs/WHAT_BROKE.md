@@ -1,0 +1,1032 @@
+# What broke
+
+Running log. Written as things happen, not reconstructed at the end — `PRD.md` §6
+commits us to publishing this, and reconstructing it later never works.
+
+One entry per surprise. Format: date, what we expected, what happened, what we
+did. Dead ends count. "Turned out to be my typo" counts.
+
+---
+
+## 2026-11-06: H19's planted group was mostly planted on blank frames
+
+**What happened:** H19 shifted `lead_distance` on 25 failures to give M2 a group it should find. That state is blank whenever no car is ahead, and M2 scores a blank frame's error as 0, so the shift reached 129 of 293 planted frames. Only 11 of the 25 failures carried it on half their frames, below M2's support floor of 20, so the positive control could not pass. **Fix:** the amended plant draws only failures that know the state on at least 60% of their window frames. **Lesson:** before planting a signal, check that the method can see it on the rows you plant.
+
+## 2026-11-04: H14's marker mask failed its check on Savio frames
+
+**What happened:** the mask rule was tuned on local Mac frames. On 50 seeded Savio frames it caught 85 of 118 coloured dots (72%, limit 90%) and a ring touched a vehicle in 13 of 50 frames (limit 0, 13 marked by both viewers and 14 by at least one), read by two independent model viewers with two panels spot-checked by the lead. **Why it matters:** markers are drawn over distant cars, so a colour mask cannot paint them out without editing the car. The offline marker test stopped before any replay, at 0 SU, and stays untested. Stage 1 drives with and without markers, so it does not depend on the mask.
+
+## 2026-11-03: the camera SimLingo drives from has shown route markers since 2026-10-05
+
+**Expected:** the policy sees the same picture a default Bench2Drive evaluation gives it.
+
+**What happened:** `route_run.py` passes `--debug 2` to the evaluator, since `a134c93` (2026-10-05). The evaluator's default is 0. With debug on, `route_scenario.py` draws the route's waypoints, its start and end, and a red trigger point with the scenario's name into the world for the whole route. Saved policy frames show them: `results/local-ui-check/frames/000180.png` has a bright green dot on the road in the car's lane, and `results/savio/39732394/route/frames-000140.png` has green and cyan marks along the road ahead (viewed by eye). That the marks come from these draw calls is inferred from colour, position and code. Every SimLingo route since 2026-10-05 shares this, on Savio and on the Mac: Steps 1, 2 and 4 and every practice gap, and the captured activations. The expert runs use `--debug 0`, so PDM-Lite is unaffected, though it has no camera anyway.
+
+**What it means:** comparisons between arms of one pilot share the markers, except on bends, where a patch can hide them on one side. Absolute failure rates may differ from a default evaluation, and comparison with published scores (PRD 10.1) is in doubt. **The size of the effect is unmeasured.** Nothing has been changed; moving to `--debug 0` changes the policy's input, so it needs a CONFLICTS entry and Jerry and Chris.
+
+**Correction, 2026-11-04:** the flag is older than this entry says. `cb474a7` (2026-10-02) added `--debug 2` to the first Mac runner, and `a134c93` only moved it into `route_run.py`. Frames from the 2026-10-02 16:09 and 18:27 Mac runs show the same dot (`results/local-mac/20261002-160934/frames/000180.png`, `results/local-mac/20261002-182756/frames/000180.png`, by eye), so I found no marker-free SimLingo run to compare against. Colour alone cannot find the markers either: a threshold on `results/local-ui-check/frames/000180.png` also picks four green traffic lights and parts of a yellow car.
+
+## 2026-11-03: cut routes can end before their hazard
+
+**Expected:** a cut route drives through its scenario.
+
+**What happened:** `cut_routes.py` measures `tail_m` (60 m) in a straight line from the trigger, but a scenario's hazard sits `distance` metres past it, and a route ends once it is over 90% complete and within 10 m of its last point. In the P20 screen, 64155 ends about 69 m past the trigger with its police car at 90 m, 64250 ends about 62 m past with its door car at 65 m, and 64223 ends about 74 m past with bicycles starting at 60 and 69 m and riding away. Those figures come from the XML and a road-map estimate, not from drives. On those roads a failure can come only from the patch. A review before any P20 outcome was read found this. **Earlier pilots, checked 2026-11-04 from the XML and stored results:** in P19 main, 47 of 55 pairs are clear, 4 end before `distance` and 4 cannot be decided. Without those 8, P19 reads 40 of 45 against 7 of 42 (exploratory), against 42 of 53 and 7 of 48 as measured, so truncation hid effect and the verdict holds; the 8 pairs failed 2 of 8 and 0 of 6. P14's scenarios have no `distance` parameter, so this count does not apply to it.
+
+## 2026-11-03: the slow-simulation guard counted loading time
+
+**What happened:** `SlowGuard`'s clock started when the evaluator launched, so a route that took close to 10 minutes to load was stopped as "slow simulation" after a few simulated seconds. Six P20 screen routes stopped this way, at 0.05 to 3.55 simulated seconds. They went to `rerun` and were not scored, so no outcome was affected. **Fix:** the clock now starts at the first control row, and the silence guard still covers a route that never loads.
+
+**Also found by the same review:** C24's "another vehicle within 50 m" clause has never failed a route (332 of 332 stored rows in `h7_check.json`, `h9_h10_check.json` and `h11_p19_main.json` have at least 2) and counts parked hazards, so it does not show oncoming traffic. Route order can put one arm in one task: in the P20 screen, task 0 is all slices and task 3 is all neighbourhood, so `run_order`'s promise that role never lines up with a node does not hold there.
+
+## 2026-11-03: every P20 screen route failed because CARLA took over 300 s to start
+
+**Expected:** CARLA ready in about 18 s, as on 2026-11-02 (route 6308188's `server-ready`).
+
+**What happened:** array 40829006 lost 19 of its 20 routes to `TimeoutError: CARLA did not become ready within 300 seconds`; the last was cancelled. No route drove, so no outcome exists. Six nodes were affected, and the server's log matches a good run's until it is killed. While stuck, the server was idle, near 40 MB of memory, with 0 MiB on the GPU, and `strace` showed ordinary file calls (`stat`, `fstat`, `close`) on scratch taking 0.25 to 0.8 s.
+
+A probe (40829569, n0217) measured 17 ms per entry listing `Engine/Plugins` from the node, against 0.2 ms per entry on another CARLA tree from the login node. Its server reached only 338 MB and 158 MiB on the GPU by 268 s. The likely cause is slow scratch metadata on compute nodes; this is not confirmed, and Savio's status page did not settle it. Reads from the login node looked normal, so a login-node check does not clear the disk. A test of repeated lookups in one directory also looked normal (0.2 ms), since that directory's entries were already cached.
+
+**What we did:** cancelled the rest, about 69 SU lost including the probe. Queued one retry: a probe at 14:14 that passes only if CARLA opens its port within 150 s, with the same screen under `afterok`, so a failed probe costs about 2 SU and drops the screen. The protocol is unchanged.
+
+**Retry:** probe 40829691 (n0212, 14:17) was not ready after 150 s, so Savio cancelled the screen array. Its scoring job 40829693 still ran for 11 minutes, because `afterany` counts a cancelled array as finished; about 3 SU, and it wrote an empty `results/savio/step5-pilot-p20-screen` holding 0 pairs, which is not a result. Gate a chain by having the probe submit the array, as `step5_continue.sbatch` does. Probe 40831451 now does this: it tries at 16:38 and then every 3 hours, 5 attempts at most. Spend 5033 of 6000 SU.
+
+**Also:** the first submit ran before Savio had the P20 files. Savio's checkout tracks `codex/carla-bringup`, so `git pull` does not bring `main`. Use `git fetch origin main && git merge --ff-only origin/main`. The array was still queued, and it reads its config at start, so the merge fixed it.
+
+---
+
+## 2026-11-03: P19 passed PRD 9.1 but a scenario label nearly equals it
+
+**Expected:** P19 would count as the first interactional gap, as STATUS and the log said on 2026-11-02.
+
+**Actual (measured, H12):** B2, a list of scenario names, scores Jaccard 0.857 on it, and PRD §13 Step 5 forbids a single-factor stratum reaching 0.4 with an interactional gap. H10 and H11 checked PRD 9.1 and solvability and never checked this condition. Changing one parameter inside one family, with few neighbourhood failures, makes the family nearly the gap.
+
+**What we did:** recorded it in `docs/research/research-log.md` and stopped before choosing another gap. Check B2's expected Jaccard before a screen is spent, because it can be estimated from the route list.
+
+---
+
+## 2026-11-02: two cut-route files reused one base id for different roads
+
+`cut_routes.py` numbered every cut from 60000, so base 60024 meant one road in P17's file and another in P19's. With the same id offset, two route ids clashed. Anything pooling by base route would have treated different roads as one. `test_no_two_committed_manifests_share_a_route_id` caught it, but my commit command ran after the test printed its failure, so 4700bd3 went in failing and three screens were queued from it. They were cancelled within minutes, before any result, and regenerated with a distinct `first_id` per config. The draws did not change. P14's main pilot keeps 60000. **Chain commits on the test command's exit code.**
+
+## 2026-11-01 — H5's manipulation check counted early braking as "no hazard"
+
+**Expected:** C24's check, written before the screens ran, would confirm the walker reached the car at speed: walker within 15 m with the
+car above 4 m/s, in at least 4 of the first 5 scored slice routes.
+
+**Actual (measured):** P10 and P12 each got 3 of 5. Across all their slice routes there are 6 misses. In 3 the model did its job: the
+car slowed below 4 m/s before the walker came within 15 m. In the other 3 no walker ever came within 15 m. Read afterwards, the car
+was above 4 m/s when a walker first came within 30 m in 7 of 9 P10 and 9 of 10 P12 slice routes.
+
+**What we did:** kept the rule. P10 and P12 are reported as untested, unlike P3's check on 2026-10-13, which was overridden. Nothing
+turns on it here: both gaps reach 2 of the 3 excess failures required, so they miss whether or not the check holds. Any further
+screen should measure the hazard before the model can respond, for example the walker's distance when it starts to move.
+
+---
+
+## 2026-10-31 — Base route 3800 crashes CARLA at about 60 s in both P7 and P8
+
+**Expected:** a lost route is bad luck on one run.
+
+**What happened:** P8's full pilot (array 40681196) lost 2 of 120 routes, both slice routes, both to a CARLA
+segmentation fault followed by a silent evaluator: 304831 at about 75 simulated seconds and 380031 at about
+60. Route 380031 shares base route 3800 with P7's 380038, which crashed at about 64 s on both of its runs.
+P7 and P8 change only the camera feed, so the crash belongs to the base route, not the gap.
+
+**Did:** reran P8's two routes once (array 40710547). Both crashed again within a second of the same points
+(304831 at 73.8 s, 380031 at 60.7 s; "The simulation took longer than 600.0s to update"). Both are
+MergerIntoSlowTraffic routes on Town12 and Town13 with the car standing still, the 2026-10-16 pattern. Base
+routes 3048 and 3800 are candidates for exclusion from future pilot draws (decision for Chris and Jerry).
+
+---
+
+## 2026-10-31 — P7's full pilot lost 5 of 120 routes, and the main configs say "screen"
+
+**Expected:** 60 complete pairs, so C23's paired check (minimum 60 pairs) could pass.
+
+**What happened:** array 40681180 finished with 4 failed tasks. Five routes have no outcome: 2365938,
+2367038 and 380038 stalled (the evaluator printed nothing for 900 s and was stopped), 352038 hit a
+CARLA crash late in the route ("1 crash, please restart"), and 347248, a neighbourhood route, timed out
+(600 s) waiting for the simulator while resetting the world after the route. That left 55
+pairs, so the paired check failed on count alone (39 slice-only failures, none the other way).
+
+**Did:** reran the five by id with `step5-pilot-p7-rerun.yaml` (array 40692440) and rescored both arrays
+together. 347248 completed. The other four, all slice routes, crashed again at the same simulation time
+(about 64 s for 380038, about 248 s for 2365938: a CARLA segmentation fault, then the evaluator went silent
+or timed out), as the 2026-10-16 entry predicted. They were not rerun a third time. P7 stands at 56
+pairs, 4 short of C23's 60; the verdict of record (PRD 9.1) passes with p = 2e-15.
+
+**Also:** `step5-pilot-p7-main.yaml` and `step5-pilot-p8-main.yaml` still carry `scope: ..._screen`. I
+made them with a text replacement for the hyphenated name and missed the underscored form. Nothing reads
+the field (it is only copied into each result file), so they stay as run to keep the config hash tied to the
+evidence; their result files are labelled "screen" though they come from the full pilots.
+
+---
+
+## 2026-10-23 — P9's glare fault crashed 7 of its 10 slice routes
+
+**Expected:** the P9 screen (array 40341126) would score 10 pairs, like P7 and P8.
+
+**What happened:** 7 slice routes ended "Agent crashed" with `get_light_boxes: Function not availiable when
+the actor is dormant`. `_light_rects` in `adapters/simlingo/visible_agent.py` reads the boxes of every traffic
+light in the world on its first call. On the large maps (Town12, Town13) CARLA keeps far-away actors dormant,
+and a dormant light refuses that call. Only 3 pairs scored, so the screen verdict (0 against 0) says nothing
+about the gap.
+
+**What we did:** `LightBoxCache` (`adapters/simlingo/light_glare.py`) reads a light's boxes only once it is
+awake and retries dormant ones on later steps. Unit-tested, not yet run in CARLA; the P9 screen needs a rerun.
+
+## 2026-10-21 — The 3D demo went blank, and slow frames shortened reaction times
+
+**Expected:** the 3D view would keep drawing once a run started.
+
+**What happened:** the canvas went blank the moment the car moved. The WebGL check ran inside
+`useSyncExternalStore`, which calls it on every render, so each frame opened a new WebGL context until the
+browser dropped the oldest, the scene's own ("Too many active WebGL contexts"). Profiling it also showed the
+game loop clamped each frame to 50 ms: below 20 frames per second the simulation clock fell behind the wall
+clock, so a slow phone measured reaction times shorter than they were.
+
+**What we did:** the WebGL probe runs once and releases its context. The loop now splits a long frame into
+steps of at most 1/60 s (`advanceSimBy`), so simulated time keeps pace with real time on any device.
+
+## 2026-10-21 — Poster PDF text came out as Type 3 glyphs
+
+**Expected:** Chromium's PDF export of the poster page would embed IBM Plex Sans as normal text.
+
+**What happened:** `pdffonts` showed every font as Type 3 (text drawn as glyph pictures), which design
+tools such as Canva often cannot edit as text. The cause was the font source: `next/font/google` serves
+IBM Plex Sans as a variable font, and Chromium embeds variable fonts as Type 3.
+
+**What we did:** the poster and demo load IBM's static TTFs through `next/font/local`
+(`dashboard/src/fonts/`). The PDF now embeds CID TrueType with Unicode maps. Check with
+`pdffonts poster/poster.pdf` after any font change.
+
+## 2026-10-20 — A third of each policy step was saving a PNG nobody read
+
+**Expected:** the policy's forward pass would dominate a step's wall time.
+
+**What happened (measured, `capture/profile.jsonl`):** at two routes per A40, a step took about 0.5 s:
+forward 0.13 s, preparing the model input 0.065 s, and about 0.3 s *after* the model. Splitting that last
+part (1ef00c5, job 40265241) left 0.26 s after SimLingo's metric collection. We first blamed SimLingo
+rewriting `metric_info.json` every step and changed that (ca63c56); the confirming run (40414272, 2026-10-23)
+showed no change. The span also covered our own `VisibleAgent`, which encodes the full camera frame as
+`last-camera.png` on every step for the Mac's live viewer, which never runs on Savio. That is the cost.
+Lesson: a span named after its first suspect hid the second one; name spans by their boundaries.
+
+The same job put four routes on one A40: the forward pass rose from 0.13–0.17 s to 0.85 s, so four is past
+the GPU's useful packing. At three routes the GPU still averaged only 37% busy (42% in 40414272).
+
+**What we did:** `visible_agent.py` writes `last-camera.png` only when the live viewer is running; the
+metric-file change was reverted. Not yet checked on a live route. Sealed pilots run from the frozen clone and
+are unaffected.
+
+## 2026-10-20 — Savio's scratch disk dropped files mid-session
+
+**What happened:** reads under `/global/scratch` began failing with `Cannot send after transport endpoint
+shutdown`: most of the shared runtime, and a finished job's `result.json`. Savio's 2026-10-19 announcement
+names this fault (Lustre storage targets going inactive) and schedules a fix for the 2026-10-26 outage.
+
+**What we did:** submitted nothing while reads were failing; a job started then would crash at startup and
+look like a simulator failure. Before blaming a route for a startup crash this week, check whether the disk
+was failing at the time.
+
+## 2026-10-19 — Every crossing route logged an "obstacle": the scenario's blocker
+
+**Expected:** `obstacle_distance` in the per-step state (349d7ef) marks debris and construction props,
+as B4's `unusual_obstacle` level says.
+
+**Actual (found in review by Jerry's agent):** `actor_class` called every `static.prop.*` an obstacle.
+DynamicObjectCrossing hides its pedestrian behind a vending machine, advertisement or container, so every
+crossing route reported an obstacle nearby. B3's obstacle feature and B4's novel-object factor would both
+have mostly meant "this is a crossing route". The captures log only the distance per class, not the
+actor's type, so shards captured before the fix can't be reclassified.
+
+**What we did:** only props named like debris or construction (cone, warning, debris, barrier, barrel,
+plank) count now (2046f52). For older shards, `obstacle_distance` on crossing routes is unusable: B3 on dev
+should drop it. The test pool is captured after the fix.
+
+---
+
+## 2026-10-16 — CARLA segfaults mid-route on long routes
+
+**Expected:** a route that starts runs to its end or its time limit.
+
+**Actual (measured, overnight arrays under christophervu):** 8 of about 90 tasks lost a route
+because the CARLA server crashed partway: `Signal 11 caught ... Segmentation fault (core dumped)`
+in `server.log`, after 35 to 250 simulated seconds at a normal real-time factor (0.08 to 0.11). The
+evaluator then either timed out waiting for the simulator (600 s) or went silent until our 900 s
+watchdog stopped it. Five nodes (n0209, n0210, n0212, n0213, n0274), so not a node fault. The lost
+routes were the long-running ones, often where the car stood still for minutes; the other route
+sharing each GPU finished. One more crash happened at start-up (exit 139 before accepting clients).
+
+**What we did:** reran the affected tasks on new jobs and rescored over both result folders (the
+scorer takes the first attempt with an outcome). A full pilot needs all 60 pairs to pass, so one
+crash can flip a verdict; budget about 1 rerun per 20 tasks on long routes. Cause unknown; the
+message (`Malloc Size=65538 LargeMemoryPoolOffset=65554`) points inside Unreal's allocator.
+
+**Update 2026-10-18 (measured):** reruns don't always help. Some routes crash again at the same point:
+one route died at simulation step 1384 on both attempts. The pattern is the same each time:
+- the large maps (Town12 and Town13);
+- the car stalled in one place;
+- a traceback in Bench2Drive's `build_scenarios_loop` → `spawn_parked_vehicles`, the background thread
+  that keeps spawning parked cars around the ego, just before the server dies.
+
+Of the 30 crashed routes across our arrays whose map is known, 24 were on Town12/13. A route that crashes twice at the same
+point should be replaced by a seeded new base route, not rerun again.
+
+---
+
+## 2026-10-15 — Some routes ran about 50 times too slowly; not the nodes
+
+**Expected:** a route of about 100 m takes 5 to 10 minutes, as Step 1's did
+(real-time factor 0.078).
+
+**Actual (measured):** six routes ran at a real-time factor of 0.001 to 0.002,
+one simulator step every 5 to 45 seconds from the second step on, while routes
+sharing their GPU finished at 0.10. The GPU sat at 3% with the policy process at
+100% of one CPU. The slow routes ran on n0263, n0278 and n0281, so the node is
+not the cause. A three-hour task limit cut most of them off.
+
+**Cause, confirmed later the same day:** `DynamicObjectCrossing` with
+`direction: left` walks lane by lane toward a sidewalk with `get_left_lane()`;
+on a two-way road that walk crosses the centre line and bounces between the two
+centre lanes forever, inside the leaderboard's scenario-builder thread. Full
+write-up, measurements across Bench2Drive-220 and the training routes, a patch
+and its verification: `docs/infra/left-crossing-stall.md`.
+
+**What we did:** cancelled the affected work. A first reading blamed the nodes
+and excluded n0278 and n0281 (51aed77); that was wrong and is reverted. A route
+below a real-time factor of 0.01 after ten minutes is the signature; stop it
+rather than let it run to the task limit. Since 2026-10-21 the launcher does
+this itself and the scorer lists such a route for rerun (`route_run.SlowGuard`);
+setup also applies the left-crossing patch to every new runtime.
+
+## 2026-10-15 — The first dev evaluation could not separate methods, and found the catch-all axis
+
+**Expected:** scoring contrastive diffing, B7-pool, B1 and B2 against P4 on the
+rollouts with per-token data would show which recovers P4 best.
+
+**Actual (measured, jobs 39951153 and 39966109,
+`results/savio/dev-eval/p4.json` and `p4-axes.json`):** almost every method at
+every SAE setting scored best Jaccard 0.699, random included. The corpus
+(176 rollouts, 73 failures) is the Step 5 pilots, and 51 of its 73 failures are
+P4's, so an axis holding every failure scores 51/73 = 0.699. Contrastive
+diffing's top axis did exactly that in all six seed-0 runs: dozens of merged
+latents covering all 73 failures, the shared "trouble ahead" direction C27
+predicted. Below it, a few single-latent axes at layer 14 are richer in P4 than
+the 70% base rate: latent 405 at k = 64 holds 35 failing rollouts, 32 of them
+P4's (Jaccard 0.59); latents 786 and 615 reach 92% on smaller axes. At layer 10
+the best is 82%. With about 40 axes examined this is suggestive, not shown.
+B7-pool scored 0.20 to 0.47.
+
+**What it means:** the evaluation needs a corpus where a gap is a minority of
+failures, as PRD 9.1's 4 to 8% assumes, and the contrastive method needs C27's
+treatment of the shared failure direction before its top axes mean anything.
+The SAE itself trained well: 36 runs, held-out explained variance 0.92 to 0.93
+(about 0.01 across seeds), no dead latents.
+
+**Follow-up, same night (job 39966163, `p4-capped.json`):** capping a latent's
+and an axis's share of failures at 0.8 (C27's dev variant) removes the
+catch-all. Best Jaccard with P4 then rises at layer 14 to 0.76 (k 32), 0.79
+(k 48) and 0.73 (k 64), with 79 to 83% of the top axis being P4, against 0.68
+to 0.73 at layer 10. A random 58-rollout axis would score about 0.59 here. The
+top axes sit at the cap, so generic signal is still mixed in; the cap of 0.8
+was set for this P4-heavy corpus and is not a method default.
+
+**SAE seed agreement** (PRD 12.2's six-seed check, on the decoders;
+`results/savio/sae-sweep/seed_agreement.json`): averaged over latents and seed
+pairs, a latent's best absolute cosine with any latent of another seed is 0.41,
+0.33 and 0.28 at layer 10 for k 32, 48 and 64, and 0.43, 0.35 and 0.30 at layer
+14, against 0.11 for random dictionaries. Seeds share some structure but learn
+largely different dictionaries, more so at larger k. Each seed also holds out
+different base routes, so part of this is data, not initialisation. Whether the
+features that matter (the P4-rich axes) recur is checked behaviourally next.
+
+**Across all six seeds (job 39966271, `p4-seeds.json`), the layer-14 edge
+mostly goes.** Capped best Jaccard with P4 averages 0.70 to 0.74 for every
+layer and k (range 0.63 to 0.83), against the 0.70 any all-failures axis gets;
+L14 k48 is best at 0.74. The best axes are 72 to 87% P4 against a 70% base.
+Seed 0's 0.76 to 0.79 at layer 14 was partly luck. B7-pool averages 0.26 to
+0.44. On this corpus the methods cannot be told apart: the corpus, where P4 is
+70% of failures, is the binding problem, not the methods.
+
+---
+
+## 2026-10-15 — An animal crossing troubles SimLingo no more than a person
+
+**Expected:** P6, an animal from Fail2Drive's simulator crossing from behind a
+blocker where SimLingo has only seen people cross, would raise failures, since
+the animal class is absent from its training.
+
+**Actual (measured, screen arrays 39893176 and 39921553, scored by 39921554):**
+the animals spawned and crossed (`docs/p6-animal-check.jpg`), but 1 of 9 animal
+routes failed against 2 of 10 with a person in the same crossing; no base route
+failed only with the animal. Route 2694436 has no outcome. The screen rule
+fails, and `scripts/step5_continue.sbatch` declined the 60-pair pilot on its
+own, as designed.
+
+Across Step 5, every gap that changes what the camera sees (night, fog, dust,
+pedestrians in lane, animals) left SimLingo's failure rate where it was, and
+the one gap that removes what the camera sees (P4) passed. Planted gaps need to
+take information away, or to change the interaction itself, not its look.
+
+---
+
+## 2026-10-14 — Pedestrians walking in the ego lane barely trouble SimLingo here
+
+**Expected:** P5, Fail2Drive's PedestriansOnRoad appended to ordinary routes,
+would reproduce Fail2Drive's report of SimLingo colliding in 87% of its own
+PedestriansOnRoad routes.
+
+**Actual (measured, screen arrays 39890439, scored by 39890440):** the walkers
+were there: on every slice route the logged nearest-pedestrian distance fell
+to 0.5 to 17 m within 30 simulated seconds, and never appeared on the
+neighbourhood routes. But SimLingo failed 2 of 8 slice routes against 1 of 9,
+with one pedestrian collision; paired, 1 base route failed only with walkers
+and none only without. The screen rule (an excess of 3) fails, so the 60-pair
+pilot was not run. Three tasks lost their routes: two because CARLA would not
+start on n0273 and n0278, one to an evaluator crash.
+
+Our version differs from Fail2Drive's: walkers start 30 m ahead of a car that
+is starting from rest (theirs 60 m, on dedicated routes), so SimLingo meets
+them slowly. Whether that explains 87% against 12% is untested.
+
+**Also:** P4's screen scoring job crashed writing its report: McNemar's
+p-value is a numpy float, so the pass verdict was a numpy bool, which `json`
+cannot write. It is reached only when uplift and ratio both pass, which is why
+P3 and P5 never hit it. Fixed in `660b859` and P4 rescored.
+
+---
+
+## 2026-10-13 — Dense daytime fog does not make SimLingo fail either
+
+**Expected:** P3, fog density 90 at noon, a region no collection preset
+reaches, would raise failures far enough to pass as a perceptual control gap.
+
+**Actual (measured, `results/savio/step5-pilot-p3/efficacy.json`, arrays
+39866909 and 39867344, scored by job 39867345):** fog routes failed 15 of 59
+(25%), their clear-noon twins 18 of 60 (30%). Fisher p = 0.68; paired by base
+route, 6 failed only in fog and 8 only in clear, McNemar p = 0.79. Neither rule
+passes. Fog changed how the car drove, not whether it failed: driving score
+88.8 against 88.4, but routes took 53 simulated seconds against 42, and 17 fog
+routes stood still for 38 seconds or more against 13. One route (1171530) has
+no outcome. About 500 SU.
+
+This is the third perceptual condition that SimLingo shrugs off, after night
+and stock fog or rain (Step 2) and P1's night dust (Step 4). Two consequences.
+`PRD.md` §9.1's harness validity needs a T0 control gap that every method
+recovers, and weather is not producing one. And pairing helps less than C23
+assumed: 9 base routes failed in both arms, 14 in one only, so a route's
+outcome is only loosely tied to the route.
+
+**What we did:** recorded P3 as failed; launched no further pilot. A control
+gap now needs a different kind of perception failure, for example a camera
+fault or an unseen object class (Fail2Drive's animal assets) rather than
+weather. That choice is for Chris and Jerry.
+
+---
+
+## 2026-10-13 — P3's manipulation check failed on a bad measure, and was overridden
+
+**Expected:** C24's check, written into `gaps/practice/practice_v2.yaml` before
+the pilot ran, would pass if fog reached the camera: the fog route's median
+pixel standard deviation over its first 20 steps below 0.7 times its clear
+twin's, in at least 4 of the first 5 completed pairs.
+
+**Actual (measured):** 3 of 5 passed. Ratios in completion order: 0.48, 0.84,
+0.46, 1.00, 0.52. The array (39866909) was cancelled at that point, as the rule
+says, before any outcome was looked at. The frames of the two failing pairs
+show the fog plainly (`docs/p3-fog-check.jpg`: rows are base routes 3666 and
+25424, which failed the measure, then 1792, which passed; fog on the left).
+Pixel standard deviation does not track haze in low-contrast scenes: in a flat
+desert under an open sky the clear frame is already nearly uniform, so fog
+barely changes its spread while erasing the horizon.
+
+**What we did:** resumed the same gap, unchanged, as array 39867344 over the
+46 unfinished tasks, reusing the 31 routes already completed; no driving
+outcome had been read. This is a deviation from a pre-set rule and is reported
+as one. Candidate measures checked afterwards on frame 20 of the same five
+pairs (fog over clear): whole-frame spread 0.46 to 1.00, as above; spread of
+the upper half 0.34 to 0.69; mean colour saturation of the upper half 0.24 to
+0.43, which separates every pair. Upper-half saturation is the proposed measure
+for the next perceptual pilot. Fix its threshold before that pilot runs, since
+these five pairs chose it.
+
+---
+
+## 2026-10-13 — The layer sweep's second pick depends on the scikit-learn version
+
+**Expected:** rerunning the Step 4 sweep on compute-box, on the same 190 shards
+with the same seeds, would reproduce Savio's choice of driving queries at
+layers 10 and 11.
+
+**Actual (measured):** compute-box chose layers 10 and **9**. It runs
+scikit-learn 1.6.1 (Python 3.9); Savio's analysis venv runs 1.9.1. Shuffled
+`StratifiedGroupKFold` assigns base routes to folds differently across these
+versions, which moved individual metrics by up to 0.089 (junction-distance R²,
+occlusion AUROC) and failure AUROC by 0.058. Layer 10 was first in both runs.
+The runners-up are a near-tie: on Savio, combined ranks were 9.5 (layer 11),
+10.4 (13) and 10.7 (9); on compute-box 8.6 (9), 9.9 (13) and 11.1 (11).
+
+**What we did:** stopped the compute-box stability check, which compared
+against Savio's choice and would have counted the version change as
+instability, and ran it on Savio in the original venv (CPU job 39867065,
+`scripts/step4_stability.sbatch`). Any rerun of a sweep must use the venv that
+produced the result it is compared with. Whatever the resamples say, only the
+first pick is well separated.
+
+---
+
+## 2026-10-13 — A third A40 node, n0262, kills CARLA on start
+
+**Expected:** the P3 pilot array (job 39866822) would run like Step 4's, with
+n0214 and n0215 excluded.
+
+**Actual:** within two minutes, seven of ten started tasks failed with "CARLA
+exited with code 1 before accepting clients"; the server log ends at "Disabling
+core dumps." Every failed task ran on n0262.savio3, each failing in 10 to 25
+seconds, so the node kept taking the next task. Tasks on n0264 and n0280 were
+driving normally. One task on n0262 had started a route, so the node probably
+has one bad GPU rather than none working.
+
+**What we did:** cancelled the array at about 2 SU spent, resubmitted as job
+39866909 with `--exclude=n0214.savio3,n0215.savio3,n0262.savio3`, and made the
+overnight watcher stop on three tasks failing in under 90 seconds. The list
+now lives in `configs/cluster/savio.yaml` (`gpu_a40.exclude_nodes`), and
+`scripts/submit.sh` applies it to every A40 submission.
+
+---
+
+## 2026-10-12 — Both practice gaps failed efficacy, and the check could barely have passed them
+
+**Expected:** at least one of P1 (dust storm at night) and P2 (pedestrian behind
+a container at night) would pass the §9.1 efficacy check, so the layer sweep
+could score practice-gap recovery.
+
+**Actual (measured, `sweep.json` of job 39784631, read on Savio):** P1 failed
+7 of 30 against 5 of 29 in its neighbourhood (Fisher p = 0.75); P2 failed 2 of
+30 against 0 of 30 (p = 0.49). The sweep skipped gap recovery and chose two
+pairs on the other metrics: driving queries at layers 10 and 11. 189 of 190
+routes have an outcome; route 2535800 (array task 25) failed and is on the
+rerun list. A design review then found the check itself underpowered at 30 per
+arm, analysed unpaired on paired data, and blind to P2's 5-base-route
+clustering, and found that the array ran each slice in a separate block of
+tasks from its neighbourhood.
+
+**What we did:** proposed a powered, paired check (`CONFLICTS.md` C23) and a
+manipulation check (C24); shuffled run order for every future array
+(`05979cb`). The replacement practice gaps wait on C23.
+
+## 2026-10-09 — On Savio, a dust storm at night renders as darkness
+
+**Expected:** practice gap P1 (dust storm parameters with the sun below the
+horizon) would put visible dust into the camera image. On the Mac, the dust
+made night frames slightly brighter than clear night.
+
+**Actual (measured, first 12 P1 routes of array job 39784630):** on Savio's
+renderer the dust adds nothing visible. Routes whose Step 2 run was already at
+night look the same (route 1825: mean camera pixel 38 in Step 2, 35 now; 3099:
+60 and 76). Routes that were daytime in Step 2 are now near black (3575: 141
+then 0; 28229: 155 then 2). The camera check still passes (no route has
+crashed), and every capture field is filled.
+
+**What we did:** kept the run. P1 is still a perceptual, control-tier gap, but
+on Savio it tests "very dark night" rather than "dust". Its efficacy check
+decides whether it counts, and any write-up must describe it as darkness. If
+it fails efficacy, its replacement should be a perceptual condition checked on
+Savio's renderer first, not the Mac's.
+
+## 2026-10-09 — Savio replay is exact against itself but not against the live log
+
+**Expected:** Step 3's done-condition, replaying a logged frame offline to within
+1e-3 m of the logged waypoints, would hold on Savio as it did on the Mac (0.0 m,
+MPS fp32), as long as the replay used the logged dtype.
+
+**Actual (measured, jobs 39784216 and 39784287, A40, CUDA bfloat16):** 331
+frames saved by Step 2 routes 26956, 25424, 2204 and 1773 all miss. No frame
+matches bit for bit; the median frame is off by 1–3 cm on the route waypoints
+and 6 cm on the speed waypoints, the worst by 0.25–0.375 m. Those are one to
+three bfloat16 rounding steps at waypoint distances of 16–64 m. Every layer
+mean differs too. But three independent replays of route 26956's 30 frames, in
+two separate jobs, agree exactly (0.0 m). CUDA bfloat16 inference is
+deterministic; something in the live agent's process differs from the offline
+rebuild. Not yet found: the model is built the same way (bfloat16 parameters,
+the same checkpoint load), so candidates are the default dtype while the live
+agent runs, or GPU sharing with CARLA changing which matrix-multiply kernels
+are picked.
+
+**What we did:** recorded it rather than chase it overnight. Replay is exact
+against replay, which is what the causal checks need: an intervened replay is
+compared with an un-intervened replay, never with the live log. Whether that
+replaces the done-condition is for Chris and Jerry (`CONFLICTS.md` C22).
+
+## 2026-10-09 — A dust storm written into a route would have vanished after a few steps
+
+**Expected:** writing `dust_storm="100"` into both of a route's `<weather>`
+entries, as Bench2Drive's own routes write their weather, would hold the dust
+storm for the whole route.
+
+**Actual (read from source, not yet run):** with two or more weather entries the
+leaderboard adds `RouteWeatherBehavior` (`route_scenario.py` line 442), which
+re-sets the weather as the car advances by interpolating 13 parameters.
+`dust_storm` is not one of them, so each new weather object carries its default
+of 0 and the storm disappears early in the route. With one entry the weather is
+set once, with every parameter.
+
+**What we did:** `adapters/simlingo/dev_routes.py` writes one weather entry per
+route, and a test asserts it. Also found while generating the dev pool: the 7
+routes whose scenario Bench2Drive skipped in Step 2 are all 5 InterurbanActorFlow
+routes and 2 of the 5 InterurbanAdvancedActorFlow routes, not 7
+InterurbanAdvancedActorFlow; the dev pool leaves both families out.
+
+## 2026-10-08 — Why the Mac beat the paper: mostly the route sample
+
+**Expected (2026-10-06 entry below):** Savio in bfloat16 would show whether the
+Mac's 93% success rate came from float32 precision, the Mac's renderer, or chance.
+
+**Actual:** Savio's full Bench2Drive-220 run scored success 72.7% (DS 88.6), above
+the paper's 64.8% but far below the Mac's sample. On the 40 routes both
+platforms scored, the Mac succeeded on 37 and Savio on 33 (mean DS 96.7 against
+90.8). They disagree on 8 routes, 6 in the Mac's favour; a sign test gives
+p = 0.29, so a platform difference is not shown. The larger effect is the sample:
+the one-route-per-scenario-type routes the Mac drove succeed 82.5% of the time
+on Savio, against 73.7% across all 213 routes whose scenario ran.
+
+The stalls are platform-independent. Of the 11 routes where the Mac stood still
+for 38+ simulated seconds, 7 did so on Savio too, and four (1956, 2204, 2373,
+25845) stood still for the same 40–41 s on both, the time after which SimLingo's
+scripted creep fires. Across all 220, 48 of 213 scored routes stood still for
+38+ s, and the creep fired on 44 of them.
+
+**Did:** nothing more on the cluster. An fp32 arm on Savio was the planned
+follow-up if Savio landed near the paper while the Mac stayed at 93%. It did
+not, and the paired difference is within chance, so the run would not be worth
+its GPU time now.
+
+## 2026-10-08 — The Savio "lost file" was a passing scratch fault, and the A5000 queue was jammed
+
+**Expected (2026-10-07 entry below):** the CARLA client library that Step 1
+could not read had lost its data on scratch, so the venv would need rebuilding.
+
+**Actual:** on a login node at 01:40, `import carla` worked and the checkpoint
+hashed to the pinned SHA256. The 2026-10-07 failures hit two nodes within
+minutes: `n0120` got "Cannot send after transport endpoint shutdown" on the
+library (the node's scratch client had been cut off), `n0129` got a plain
+input/output error reading the checkpoint. Both are node-to-filesystem faults
+that had cleared by the next day. Nothing was rebuilt.
+
+Then the queue: `savio4_gpu` had 9 A5000 nodes down and 4 drained, 846 pending
+jobs, and 57 A5000 jobs ahead of ours on priority. `sbatch --test-only` put a new
+A5000 job three days out. The same Step 1 submitted as an A40 job
+(`savio3_gpu`, `a40_gpu3_ica`, 8 CPUs) started within minutes, even though
+`--test-only` had estimated 20 hours.
+
+**Did:** added a `gpu_a40` profile to `configs/cluster/savio.yaml` and
+`scripts/submit.sh`, queued Step 1 on both, and cancelled the A5000 copy when
+the A40 one started. `--test-only` estimates assume every running job uses its
+full time limit, so they overstate the wait; try both GPU types before waiting.
+The A40 job also started early because the `ic_` QoS preempted another user's
+low-priority job on that node.
+
+Then the first Step 2 pilot (job 39732585) failed in 7–30 s: all four CARLA
+servers exited with code 1 before accepting a client, with nothing in their
+console output. Both array tasks had landed on `n0214`'s second A40, the GPU
+Step 1 had not used. Another user's array tasks failed on the same node in 7–9 s
+each over the next two minutes (`sacct -a -N n0214.savio3`), so that GPU is
+faulty, and because jobs fail on it at once, the scheduler keeps handing it out.
+Resubmitted with `--exclude=n0214.savio3`. Worth reporting to Savio support.
+Twenty minutes into the main array the same thing happened on `n0215`: tasks
+5–7 (six routes) failed in under a minute with CARLA exit code 1. Both nodes'
+bad GPUs had just been freed by preempting the same other user's jobs. The
+pending tasks now exclude both nodes (`scontrol update ... ExcNodeList=`), and
+the agent's watcher adds any node where a task fails within 90 s.
+
+In the resubmitted pilot (39732614), two routes share each A40. In task 0 the
+second CARLA server segfaulted (signal 11) during startup while the first one,
+started the same instant, came up; in task 1 both servers started together
+without trouble. So it is an occasional startup race, possibly over the
+`~/.config/Epic` directory every server writes to. `route_sample.sbatch` now
+starts a slot's server only after the previous one accepts clients
+(`server-ready` marker, `cd8ac06`). The crashed route (1773) gets no result and
+lands on `score_routes.py`'s rerun list.
+
+At 03:40, route 2802 ended "Failed - Agent couldn't be set up": loading SimLingo
+took longer than the 60 s client timeout while the second slot's CARLA was
+starting on the same node. Our configs inherited `timeout_seconds: 60` from the
+Mac; Bench2Drive's own default is 600 s. Left at 60 for the rest of this
+campaign so one config describes every route, and the route goes on the rerun
+list. Raise it to 600 for later campaigns.
+
+At 04:20, route 3561 (Town13, ControlLoss, sun 90° below the horizon, rain)
+ended "Failed - Agent crashed" from our own black-frame check, written for
+compute-box's D3DMetal black frames: it failed any frame whose mean was under
+1/255. The night camera averaged 1.0–3.5 all route with a standard deviation of
+5.3 or more, and the car was driving normally at 7–8 m/s. 53 of the 220 routes
+are night routes (sun at or below −30°), so the check would have quietly biased
+Step 2 against them. It now fails only flat frames (standard deviation under 1),
+from `6763534`; tasks started before that keep the old check, and any night
+route it crashes goes on the rerun list.
+
+Two more kinds of route failure turned up by 05:30. Route 3904's CARLA stopped
+answering at step 107; Bench2Drive's watchdog fired after 61 s, but the
+evaluator then sat in cleanup (each actor destroy waits 60 s on the dead
+server) and held an idle A40 for an hour until the task was cancelled by hand.
+`run_evaluator` now stops an evaluator that has printed nothing for 15 minutes
+(`f111121`); it prints every simulation step, even during a stall. Route 3436's
+CARLA segfaulted while loading its map. And two Town12
+`InterurbanAdvancedActorFlow` routes (23700, 24078) skipped their scenario with
+"'NoneType' object has no attribute 'road_id'", the same failure class as the
+Mac's route 23918: scored as driven by Bench2Drive's merge, left out of the
+clean number, not rerun.
+
+## 2026-10-07 — Moving the Mac CARLA runs to compute-box
+
+**Expected:** copy the laptop's CARLA install (30 GB) to compute-box, the M1 Pro
+16 GB Mac on the tailnet, and keep sweeping there.
+
+**Actual, four surprises:**
+- The laptop left the shared network mid-copy; Tailscale fell back to a relay at
+  about 1.2 MB/s and dropped connections. compute-box instead downloaded the
+  pinned Windows CARLA and AdditionalMaps zips itself (about 20 MB/s, checksums
+  matched) and only the 476 MB Wine wrapper went over the relay.
+- `ditto -x -k --hfsCompression` (unzip with APFS compression) failed on 347 of
+  34,087 files with "Invalid argument" and stored the rest uncompressed. Plain
+  `ditto --hfsCompression` file to file works, so a small script extracted each
+  zip member, compressed it that way and checked the zip CRC. CARLA shrinks from
+  30 GB to 17 GB; the file list matches the laptop's install exactly.
+- Running the Sikarugir `launcher` over SSH prints "Closing Sikarugir" and starts
+  nothing. CARLA starts when launched inside the logged-in desktop session
+  (`open -a CARLA.app`, or the sweep started from a Terminal window via `open`).
+- Memory: CARLA at Epic, idle, takes the box to 10.8 GB wired (GPU) memory and
+  5.9 GB swap. With SimLingo on MPS it still runs, with swap steady at 6–7 GB,
+  but at 0.021× real time against the laptop's 0.059×.
+
+- **Then the camera went black.** After one clean test (route 17635 drove 11
+  simulated seconds at 0.021×), every real attempt crashed: 17635 twice at about
+  2 simulated seconds and 24841 twice at its first step, each with SimLingo's
+  "CARLA supplied a black or uniform policy camera frame" check. These runs ran
+  at 0.009–0.010×, half the speed of the clean test. This never happened in any
+  laptop run. Memory is ruled out: on 2026-10-08, after Docker Desktop and idle
+  apps were stopped (85% memory free, swap 2.7 GB), both routes failed the same
+  way again. 17635 fails at steps 38–42 every time (about 2 simulated seconds),
+  24841 at step 0, which points at something compute-box's D3DMetal cannot draw
+  rather than at load. 6 of 7 attempts failed. **The frames are dark from the
+  start, not suddenly black:** saved model inputs of 17635 (a daytime route, sun
+  15° up) average 3.6/255 per pixel at step 10 and 1.0/255 at step 40 on
+  compute-box, against 138/255 on the laptop, so compute-box's renderer fails
+  from the first frame and even the one "clean" test drove almost blind. Since
+  `6763534` the check fails only flat frames (spread under 1), and these frames
+  have a spread of 9–18, so a compute-box run would now pass the check and drive
+  blind: do not use compute-box for CARLA. Bench2Drive scored the crashes (5.31)
+  and the sweep kept that score, so `route_record` now leaves any status outside
+  `VALID_OUTCOMES` unscored (`034fe3f`), the same rule `run_local.py` already
+  applied. Evidence: `results/local-sweep/20261007-computebox-*`.
+
+**Did:** ran the remaining repeat routes there with the sweep's wall cap raised
+from 35 to 120 minutes (at 0.021× a 35-minute cap ends a route after about 45
+simulated seconds, which would leave stall routes unscored) and a guard that
+stops CARLA if swap passes 8 GB or free disk drops under 5 GB, because the box
+also serves production's Blender offload.
+
+## 2026-10-01 — Reconciled the two planning documents
+
+**Expected:** two competing PRDs needing a winner picked.
+
+**Actual:** the same project at two levels. The brief had the better scientific
+argument; the 99p handoff had verified facts, better execution machinery, and was
+partly a review of the brief. Resolved by precedence rule — design from the
+brief, facts from the handoff — rather than by choosing.
+
+**Notable:** the handoff's audit found the brief's motivating case study
+(SimLingo 98.50 → 19.68 on pedestrians in the ego lane, with a hallucinated
+vehicle-shaped lead actor) is unconfirmed. The aggregate Fail2Drive numbers hold.
+Step 0 resolves it. Also unresolved: the brief and handoff give contradictory SAE
+expansion ratios (1 vs 8×–32×) and both sound confident.
+
+**Did:** wrote `PRD.md`, `CONFLICTS.md`, `docs/steps/00-ground-the-facts.md`.
+
+## 2026-10-01 — Overwrote the original brief
+
+**Expected:** writing `PRD.md` would sit alongside the existing `prd.md`.
+
+**Actual:** Windows filesystems are case-insensitive, so `PRD.md` replaced
+`prd.md`. Caught it on a post-write directory listing, not by noticing at write
+time. The README had already been written claiming the original was preserved.
+
+**Did:** restored all 881 lines byte-for-byte from the session's persisted
+tool-result capture to `docs/source/project-brief-original.md`, under a
+non-colliding name. Fixed the README.
+
+**Lesson:** on this box, filenames differing only in case are the same file.
+Applies to any future `README.md`/`readme.md` or config-casing pair.
+
+## 2026-10-01 — Step 1 cannot be agent-automated; Savio needs interactive MFA
+
+**Expected:** hand Step 1 to an agent and have it run start to finish.
+
+**Actual:** structurally impossible. Savio requires a PIN plus a rotating
+6-digit TOTP code at every login, and `ic_` allowances do not permit unattended
+SSH keys. `hpc.brc.berkeley.edu` is reachable from this box and the TCP
+connection succeeds, but authentication needs a human with a phone. There is
+also no local GPU to rehearse against.
+
+Compounding it: the `--partition` value for `ic_cdss170fall` is not published,
+so even an authenticated agent could not submit a correct job yet.
+
+**Did:** split the work by what actually needs a human.
+- `docs/savio-support-email.md` — send first; longest external latency, and
+  answers 1-2 are half the input to PRD §16.2.
+- `scripts/savio_recon.sh` — one paste on a login node, read-only, answers most
+  of Step 1 stages 1.1-1.2 without waiting for the email reply.
+- `scripts/check_gpu.sbatch` — Step 0's done-condition, and it probes the
+  off-screen rendering question (libGL/vulkan/Xvfb) since that is the most
+  likely project-level blocker.
+
+**Lesson:** MFA-gated clusters make the human the bottleneck for the first
+touch of every environment. Design the asks as single-paste scripts whose output
+can be handed back, rather than as sessions an agent drives.
+
+**Also:** scripts written on Windows got CRLF endings, which break the shebang
+on Linux. Added `.gitattributes` forcing LF on `.sh`/`.sbatch`/`.yaml`/`.py`.
+
+## 2026-10-01 — Savio GPU partitions blocked; pivoted to GPU-free work
+
+**Expected:** working login means we can submit a GPU job.
+
+**Actual:** login works (user christophervu) but `ic_cdss170fall` has only
+`savio2_gpu`, which is **retired**, and `savio3_gpu` / `savio4_gpu` are
+**rejected**. No usable GPU partition. Support request open. Step 1 is blocked
+on the reply, not on anything we can write.
+
+**Did:**
+- Externalised every cluster setting to `configs/cluster/savio.yaml`. No script
+  names a partition, QoS or GPU type. `scripts/submit.sh` reads it and refuses
+  GPU submission while `gpu.available: false`, printing the reason — so the
+  failure mode is a clear message rather than a confusing Slurm rejection.
+- Built the GPU-free half of the harness instead: schema contracts, Hungarian
+  scoring, metrics, 32 tests. The headline metric is now verified on synthetic
+  data before any rollout exists.
+- Added the sealed-key CI guard the PRD promised, with tests that inject real
+  leaks to prove it fails.
+
+**Lesson:** "we have an allowance" and "we have a usable partition" are
+different facts. Worth checking the second before planning around the first.
+A retired partition is also a reminder to re-verify inherited infrastructure
+claims — this one came from documentation, not from a successful job.
+
+## 2026-10-02 — Mac compatibility and commentary-off model bring-up
+
+The available machine is an Apple M5 Pro Mac with 48 GB RAM. CARLA 0.9.15 has
+standard Windows/Linux server releases and no macOS Python wheel. A community
+Windows-server path using Wine/D3DMetal is being tested, rather than changing
+the experiment to CARLA 0.10. Docker Desktop's initial `info` probe returned 500;
+no existing containers or VM state were deleted or reset.
+
+Downloaded the released SimLingo checkpoint at Hugging Face revision
+`26c7c89e797d4e25bbf640013317af8da26a5454` and verified SHA256
+`ec8943723d266ee9f5f56f45d153a163b22616960bfccb741965ea5daa700d28`.
+Its full model strict-loads on CPU and emits finite 10-point speed and 20-point
+route predictions from a dummy camera input.
+
+The pinned source defaults to commentary on. Setting `predict_language=False`
+exposed a real error: `forward_model()` returns `(features, logits)`, but the
+commentary-off branch passes that tuple to a tensor-indexing function. Reproduced
+the original `TypeError`, patched the unpacking, and wired the agent's
+`use_cot=False` setting into the model. The same weights and input then pass.
+The patch and verifier are under `adapters/simlingo/`; CPU model execution does
+not establish CARLA camera rendering or closed-loop experiment readiness.
+
+
+## 2026-10-02 — Native client and local route bring-up
+
+The Docker client could handshake but stalled during synchronous operations.
+Built an arm64 Python 3.11 client from nfriend/CARLA revision
+`0786f27568f1adfa645232e812b440cc7e3742ed`. Boost 1.80's enum used a Python GC
+flag without a traverse function; the upstream one-line Boost.Python fix made
+it import. NumPy 1.26.4 and framework Python headers were required for the build.
+The client labels itself `0.9.15-macclient`, so the version-string warning is
+expected and recorded. Real camera/frame matching and control then passed.
+
+A route omitted `SCENARIO_RUNNER_ROOT` and silently skipped its scenario. That
+attempt is invalid. The launcher sets the path and rejects any skipped-scenario
+log or agent/server crash. Some later diagnostic retries overlapped a helper's
+live tests; those attempts are excluded. All subsequent runs have one lifecycle
+owner and one evaluator.
+
+Low rendering crashed Unreal's render thread during camera warmup. Threading
+flags, off-screen mode and a warmup delay did not resolve it. Epic rendering
+reached real sensor input. Repeated world reloads were also unstable, so local
+launches use a fresh server per route. Server readiness retries create a new
+client after a failed startup connection.
+
+The first live step tried to call Hugging Face `snapshot_download` with the
+installed base-model directory as a repository ID. The prompt code now uses the
+same offline directory as model setup. Cleanup expected an absent legacy
+`data_module.encoder` field; it now reads that optional field safely.
+
+The first model prediction exposed a one-element speed array in the PID history,
+which NumPy 1.26 rejects as a ragged array. The PID boundary now requires scalar
+speed with `velocity.item()`. The agent explicitly enters evaluation mode and
+uses inference mode. MPS requires CPU fallback for bicubic upsampling under
+PyTorch 2.2.0. The complete route now passes with
+294 model inference steps and 100% route completion. Evidence is in
+`results/local-mac/20261002-160934/`; the launcher stopped its owned server.
+
+Minimum-speed records include ratios above 100%. In the pinned criterion, every
+checkpoint unconditionally emits `MIN_SPEED_INFRACTION`; the percentage is ego
+mean speed divided by background mean speed. Slow background traffic therefore
+produces large values. The pinned statistics manager marks this penalty as
+`unused`, matching PRD §13. Raw events and scores are preserved. This single
+route verifies local plumbing and does not establish benchmark reproduction.
+
+
+The first native window processed events on the inference thread, and macOS
+accessibility calls could not inspect it reliably. Existing programs also share
+Python's default app identity. The camera now runs in a separate, locally signed
+Python app with its own event loop. Desktop camera pixels, Space pause/resume and
+continued model controls were observed.
+
+After closing the viewer, the upstream evaluator could linger in shutdown. The
+viewer now records cancellation before announcing it; the launcher's log reader
+then stops its owned process group immediately. Escape cleanup passed and the
+cancelled run has no readiness result. The complete route using the independent
+viewer is `results/local-mac/20261002-163439/`.
+
+
+## 2026-10-02 — Viewer teardown and Mac sleep
+
+Normal viewer teardown sends SIGTERM. SDL converted that signal into a quit event,
+so the camera incorrectly recorded a user cancellation after a completed route.
+The viewer now sets SDL_NO_SIGNAL_HANDLERS=1 before initialization, preserving
+normal process termination while Escape and window-close still record a user stop.
+
+The subsequent route stalled inside MPS inference and was correctly rejected as
+an agent crash. The power log records maintenance sleep at 17:33:49 for 721
+seconds during that attempt, followed by a dark wake at 17:45:50. The lid is now
+open. The launcher uses macOS caffeinate to prevent ordinary idle display/system
+sleep only while the run is active; it does not override lid closure or change
+persistent power settings. The failed attempt remains in
+`results/local-mac/20261002-173210/` with no readiness report.
+
+The official additional map package was streamed into the dedicated CARLA app
+after space became available. Every packaged file passed length and CRC checks,
+and Town12 passed camera/control smoke. Task-generated native build caches were
+removed after confirming the installed client uses system dynamic libraries; the
+pinned wheel and source remain available.
+
+Final delivered-launch validation after map installation and both lifecycle fixes
+passed in `results/local-mac/20261002-182756/`: 100% completion, 293 model steps,
+14.7 simulated seconds in 244.670 wall seconds. Normal teardown did not create
+a user-stop marker; readiness was saved. No owned camera, model, Wine/server or
+caffeinate processes remained afterward.
+
+## 2026-10-05 — Savio GPU "rejection" was the wrong QoS, not missing access
+
+**Expected (2026-10-01 entry above):** `ic_cdss170fall` has no usable GPU
+partition; wait for support.
+
+**Actual:** `sacctmgr -nP show assoc user=$USER format=Account,Partition,QOS`
+lists the allowance on `savio3_gpu` with `a40_gpu3_ica`, `v100_gpu3_ica` and
+`gtx2080_gpu3_ica`, and on `savio4_gpu` with `a5k_gpu4_ica`. The earlier jobs
+asked for `savio_normal`, which these partitions only offer to other account
+types. Typed `--gres` (`gpu:A5000:1`) and the per-type CPU ratio (4 per A5000,
+8 per A40) are also required. `savio_lowprio` is not associated at all, so
+`PRD.md` §17.2's lowprio fan-out plan does not apply to this allowance.
+
+**Did:** filled `configs/cluster/savio.yaml` from the association list (A5000 by
+default, A40 as the documented alternative) and built the Step 1 path:
+`adapters/simlingo/setup_savio.py`, `run_savio.py` and `scripts/step1.sbatch`.
+No GPU job has run yet.
+
+**Lesson:** read the scheduler's own association table before concluding that
+access is missing. "Rejected" without the rejection text was not evidence.
+
+The same day, a Mac regression run after splitting `run_local.py` into the
+shared `route_run.py` hung for 30 seconds inside the unchanged Sikarugir
+launcher call, before any refactored code ran, while two 8 GB downloads were
+streaming. An immediate rerun passed: `results/local-mac/20261005-150141/`,
+route completed, 294 model steps, 0.0558x real time, only the unpenalized
+minimum-speed checks. If the launcher timeout recurs, rerun before debugging.
+
+## 2026-10-06 — Same route and seed does not reproduce the same rollout
+
+**Expected:** synchronous CARLA with a fixed traffic-manager seed replays the
+same drive, so repeated runs of route 26956 give identical control traces.
+
+**Actual:** the five completed Mac runs of 26956 (2026-10-02 and 2026-10-05,
+same config) see different camera pixels from the very first policy frame
+(per-frame mean 105.889-105.949). Throttle is saturated early, which hides it
+until step 16-20, when controls diverge; speed differs by up to 3 m/s at
+the same step index later in the route. All five still completed the route in
+293-295 model steps. The server starts the route on a different frame each time
+(first frame 47-167), so warm-up length is one candidate cause. Another is
+that the policy camera keeps CARLA's defaults: Bench2Drive's agent wrapper sets
+only size and field of view, and 0.9.15 defaults to histogram auto-exposure,
+motion blur 0.45 and post-processing on, all of which carry state across
+frames. A first look favours rendering: against the 2026-10-02 18:27 run, the
+first policy frame of four other runs differs in 1.2-4.8% of pixels, scattered
+over the whole image and mostly by one or two intensity levels (at most 33 of 255,
+in under 0.1% of pixels). A different world state would differ in patches. The
+earliest run (2026-10-02 16:09) differs in 75% of pixels; not investigated.
+By step 40 the drives have separated (13.6% of pixels differ by more than 8).
+
+**Did:** nothing to the code. Recorded so that two things are planned for rather
+than discovered: a closed-loop rerun is a new sample, not a replay, so efficacy
+and reproduction tests (§9.1, Step 10) must be statistical over seeds; and
+Step 3's determinism check has to replay *logged* inputs offline, which is what
+`adapters/simlingo/replay_capture.py` does. Unchecked on Savio.
+
+## 2026-10-06 — The Mac drives Bench2Drive far better than the paper says
+
+**Expected:** a success rate near SimLingo's published 64.8% (Table 10, CoT
+off) and a driving score near 84, with PRD §8's practical bar at DS ≥ 75.
+
+**Actual:** the overnight sweep (`results/local-sweep/20261006-overnight/`, one
+seeded route per scenario type, 31 of 44 run) scored 27 of 29 routes a success
+(93.1%) with mean DS 97.1 (standard error 2.7). Under the paper's rate, 27 or
+more of 29 has probability 0.0005. Per ability: Merging 8/10 (paper 54.0%),
+Overtaking 5/5 (57.0%), Emergency Brake 9/9 (88.3%), Give Way 2/2 (53.3%),
+Traffic Signs 11/12 (82.5%). The failures were route 28330, three vehicle
+collisions after a left turn into traffic (DS 20.9), and route 3800, a brief
+lane departure (DS 95.9).
+
+What it hides: 10 of 31 routes stood still or crawled for 38+ simulated
+seconds, and 8 only moved again when SimLingo's scripted stuck detector forced
+throttle. Bench2Drive scores those as successes. Two stalled routes hit the
+wall cap unscored: 2144 at 35 minutes, and 3457 at the 15-minute cap used in
+the last half hour. Three
+of the rescued stalls (1956, 23659, 25845), rerun at the end of the night,
+stalled again at the same place for 40–41 seconds.
+
+**Did:** nothing to the stack. Candidate explanations, none tested: this Mac
+runs fp32 where published CUDA runs use bfloat16, which moves waypoints by up
+to 18 cm on the frames checked; the Windows CARLA build renders differently;
+chance. Step 2 on Savio is the comparison, and an fp32 arm there would
+separate precision from platform. If Savio lands near the paper, do not
+"fix" the Mac result; report both.
+
+## 2026-10-06 — Imhaohao cannot push to the shared repository
+
+**Expected:** `git push -u origin codex/carla-bringup` puts the branch on GitHub
+so Savio can clone it.
+
+**Actual:** HTTP 403. The Imhaohao GitHub account has no write access to
+`Christopher-Vu/HondaResearchInstitute`.
+
+**Did:** shipped the branch as a git bundle instead (`git bundle create`, `scp`
+to `dtn.brc.berkeley.edu`, `git clone` from the file on Savio). It works but the
+Savio copy goes stale with every new commit. Chris to add Imhaohao as a
+collaborator.
+
+**Resolved 2026-10-07:** the same push succeeded; Imhaohao now has write access.
+
+## 2026-10-07 — First Savio GPU jobs: carla import fails on the node, and the dependency did not hold
+
+**Expected:** `check_gpu.sbatch`, then `step1.sbatch`, then the 31-route array
+`route_sample.sbatch` submitted with `SBATCH_DEPENDENCY=afterok:<step1>`, so the
+array would only start if Step 1 passed.
+
+**Actual:** the GPU check completed (3 s, RTX A5000 visible). Step 1 failed in
+2 s at `import carla`: reading
+`.runtime/policy-venv/lib/python3.10/site-packages/carla.libs/libz-7d499572.so.1.2.11`
+returned "Cannot send after transport endpoint shutdown", a filesystem error
+from the scratch file system, not a Python one. All 31 array tasks then ran
+anyway and failed the same way in 1–5 s each, so the dependency set through the
+`SBATCH_DEPENDENCY` environment variable was not applied. Cost was a few
+GPU-minutes. `sacctmgr` shows the QoS allows 4 running jobs per user and 8 hours
+of wall time (now in `configs/cluster/savio.yaml`).
+
+**Did:** nothing on the cluster yet. Next: try `import carla` on a login node to
+tell a bad file from a bad node; if the file is unreadable everywhere,
+reinstall the carla wheel into the venv so its libraries are rewritten. `scripts/submit.sh` now forwards `--` options before the script to sbatch,
+so the array is submitted with a real `--dependency=afterok:<step1>`.
+
+## 2026-10-07 — The Mac ran out of battery an hour into the night run
+
+**Expected:** the second local night run (13 remaining sample routes, then six
+stall reruns) would finish by morning; the launcher's `caffeinate` keeps the Mac
+from idling to sleep.
+
+**Actual:** the Mac was on battery at 47%. It entered "Low Power Sleep" at 1%
+at 01:58 (`pmset -g log`) and stayed asleep until 08:47. `caffeinate` blocks
+idle sleep, not a flat battery. One route finished (24781); 3905 was cut off by
+the sleep and 23918 failed on waking because its CARLA server was gone. Both
+are set aside in `results/local-sweep/20261007-sleep-invalid.jsonl` and rerun.
+Because 07:30 had passed by then, the sweep stopped starting routes and the
+chain jumped to the reruns, which were stopped and reordered.
+
+**Lesson:** check `pmset -g batt` says AC power before leaving a night run.
+
+## 2026-10-07 — Bench2Drive scores a route whose scenario never ran
+
+**Expected:** every Bench2Drive route plays its authored scenario.
+
+**Actual:** route 23918 (Town13, InterurbanActorFlow) logged "Skipping scenario
+'InterurbanActorFlow_1' due to setup error: Couldn't find an end position",
+then drove the empty route and was scored 100, a success. `route_run.summarize`
+already refused readiness for it, but `sweep_local.route_record` read the score
+from `result.json` and counted it.
+
+**Did:** `route_record` now marks such a run `scenario_skipped` and leaves it
+unscored (tested); the stored record was rewritten. The setup error is a map
+query, so it will likely recur on Savio, and the official 220-route score would
+count it silently. Check every Step 2 log for "Skipping scenario".

@@ -1,0 +1,778 @@
+# Conflict log
+
+Every place `prd.md` (the brief) and `upstream-99p/docs/MASTER_HANDOFF.md` (the
+handoff) disagreed, what `PRD.md` does about it, and why. Kept so that nobody
+re-opens a settled question, and so that any decision can be reversed knowingly.
+
+**Precedence rule:** design decisions from the brief, verifiable facts from the
+handoff.
+
+Status values: **applied** (handoff correction adopted), **kept** (brief's
+position retained), **merged** (both contributed), **deferred**, **open**.
+
+---
+
+## A. Factual corrections — handoff wins
+
+### A1 · Compute platform · merged
+The brief built §17 entirely on Savio under `ic_cdss170fall`. The handoff said
+primary compute is NRP Nautilus and that Savio needs a faculty allowance the team
+may not have.
+
+**Resolution:** Savio is primary — Chris's account is registered under the
+project, so the handoff's doubt is resolved by fact on the ground. NRP is the
+documented fallback and the home for the describability model. The handoff's
+compute *sizing* assumptions were written for NRP hardware, so they do not
+transfer; the brief's four unresolved Savio questions (partition names, SU rate,
+wall time, storage quota) are now **more** load-bearing, not less. `PRD.md` §17.
+
+### A2 · Venue deadlines · applied, restructured
+The brief said "December, no venue locked in." The handoff's audit found AAAI-27,
+ICRA 2027, ICLR 2027 and NeurIPS 2026 deadlines had **already passed**, and that
+IEEE IV (mid-Nov) and RSS Stage 1 (early Dec) were the live archival options.
+
+**Resolution:** facts applied, but reframed as a **ladder** (`PRD.md` §15) rather
+than a single target, per your instruction to publish as results land. Leaning
+toward the handoff's dates. Every date carries a recheck warning.
+
+### A3 · Reproduction bar · applied
+The brief set the target at SimLingo's published Bench2Drive DS 85.1. The handoff
+found the only public reproduction attempt reached **DS 75.5** (one user, 219
+routes, configuration unconfirmed, no maintainer reply) and set the practical
+bring-up bar at DS ≥ 75.
+
+**Resolution:** bar is DS ≥ 75; published numbers listed as reference with the
+Bench2Drive version attached, since v0.0.3 and v0.0.4 are not comparable.
+`PRD.md` §10.1. This is a significant softening and it is the honest one.
+
+### A4 · Fail2Drive identity · applied
+Brief: "arXiv 2604.08535, Tübingen, 200 routes in Town 13, 17 new scenario
+classes." Handoff: same arXiv ID, venue **IROS 2026**, 100 route *pairs*, 17
+unseen scenarios, **30 novel assets**.
+
+**Resolution:** these mostly agree — 100 pairs is 200 routes. Venue and asset
+count added. `PRD.md` §4.7.
+
+### A5 · RoboART venue and description · applied, then partly reverted
+Brief treated it as an arXiv preprint and wrote that a "Gemini VLM critic filters
+four candidate edits per input." Handoff: **CoRL 2025**, PMLR 305:1615–1635;
+RoboART is the pipeline name, not the title; 12 conditions that are levels of a
+few factors; **no weather**; no public code.
+
+**Resolution:** venue and naming corrected, those stand.
+
+**Reverted 2026-10-01 (Step 0, Track A):** the VLM critic **is real** — RoboART
+§4.1 and Fig. 4 generate four edits per input and have Gemini Pro 1.5 pick the
+best or discard all four. **The brief was right and this log was wrong to drop
+it.** Restored in `PRD.md` §4.1, along with the verified detector parameters,
+prediction-error figures, and the fact that the 12 conditions are levels of five
+factors.
+
+Also recovered, and useful: they score only the **first-timestep** observation of
+each episode, which is direct support for our temporal argument, and their
+limitations section names both halves of our contribution.
+
+The brief's framing warning — that RoboART already reads policy embeddings, so the
+axis is *enumerated list vs. unsupervised discovery* — is **kept** because it is
+the single most important positioning point in either document.
+
+### A6 · RESample citation · applied
+Brief and the repo bibliography both had this wrong in different ways. It is
+arXiv 2510.17640, a preprint with no acceptance found — not ICRA 2024.
+Still cut as a baseline, for the brief's original reasoning. `PRD.md` §4.5.
+
+### A7 · Motivating case study · **resolved: the brief was right**
+The brief's §3.2 leaned on a specific Fail2Drive result: SimLingo's score falling
+98.50 → 19.68 with collisions in 87% of episodes, and a named mechanism. The audit
+could not confirm it, so it was flagged unverified.
+
+**Resolved 2026-10-01 (Step 0, Track A), in the brief's favour.** Fail2Drive §4.2
+and Fig. 6, verbatim: *"SimLingo performs particularly poorly, dropping from 98.50
+to 19.68 HM with collisions in 87% of cases. Its language-action module often
+hallucinates a nonexistent car or cyclist to follow (Fig. 6), showing overfitting
+to the language used during training."* Both the numbers and the mechanism are the
+authors' own, and the scenario is `PedestriansOnRoad`.
+
+One wording fix: the paper says "car or cyclist", not "vehicle-shaped lead actor".
+Cite their phrasing.
+
+**But a framing caution was added that neither source document had, and it
+matters more than the numbers.** `PedestriansOnRoad` is an authored scenario class
+that any factor list could name. Presenting it as an unlistable conjunction is an
+own-goal a reviewer will catch. `PRD.md` §3.2 now claims what the evidence
+supports — that the policy's competence rests on a cue-specific prior living in
+its internals rather than in the scenario description — and defers the
+unlistability argument to the planted interactional gaps, which is where it
+belongs.
+
+### A8 · Dr. VLA numbers · **resolved: the brief was right throughout**
+The brief quoted LOO accuracy 100%/96.7%, 95-of-120 features interpretable
+(79.2%) vs 30% for neurons, 0/40 after ablation, six seeds, expansion ratio 1,
+k = 100 at d = 2048. The audit could not confirm these individually, so they were
+flagged.
+
+**Resolved 2026-10-01 (Step 0, Track A). Every figure confirmed**, with one
+citation fix: the FFN-neuron baseline is 6/20 = 30.0%, so the baseline n is 20 and
+not 120. Applied in `PRD.md` §4.3 and §12.2.
+
+The code also shipped (`swannaiden/drvla`, last commit 2026-09-29): SAE training,
+generality metrics, classifier, feature index, dashboard. **No LICENSE file — ask
+before vendoring.** No steering or ablation code, and the hooks are
+π0.5/openpi-specific, so our causal check is still ours to write. Step 7 drops
+from "build an SAE stack" to "configure one".
+
+### A9 · Missing prior art · applied
+The brief omitted **event-grounded SAEs** (Jin et al., arXiv 2605.17204) — the
+closest method precedent in the literature — and **CUPID** (CoRL 2025).
+
+**Resolution:** both added. `PRD.md` §4.4, §4.6. CUPID earns its paragraph for a
+sharp reason: attribution can only rank data that is *present*, and a planted gap
+is absent data. That is a clean statement of why this is not an attribution
+problem.
+
+### A10 · Minimum-speed infraction, hard braking, failure definition · applied
+The brief had no single definition of "failure." The handoff supplies one and two
+traps: Bench2Drive excludes the minimum-speed infraction from its scores, and
+hard deceleration must not be a failure label because correct emergency braking
+would then count against the policy.
+
+**Resolution:** one definition, used everywhere. `PRD.md` §12.4.
+
+### A11 · Open-loop evaluation · applied
+Added the handoff's evidence for closed-loop-only evaluation: a model averaging
+0.29 m L2 on nuScenes scores **0% success** in closed loop on Bench2Drive, and
+~74% of nuScenes is straight driving. `PRD.md` §12.4.
+
+### A12 · CoT off · applied
+New decision not in the brief: run SimLingo with commentary and chain-of-thought
+**off** in the main campaign. Published difference is within noise (84.41 ± 1.76
+vs 85.07 ± 0.95) and it removes a text-generation pass per step. CoT-on is an
+ablation. `PRD.md` §10.1.
+
+### A13 · SimLingo architecture facts · applied
+Qwen2-0.5B, 24 layers, hidden size 896 (to confirm from config); LoRA r = 32,
+α = 64; InternVL2-1B ≈ 1B not 800M. Storage arithmetic follows from d = 896.
+`PRD.md` §9.2, §12.1, §12.3.
+
+---
+
+## B. Design decisions — brief wins
+
+### B1 · "What we build vs. what we take" · kept
+The handoff has no equivalent section. The brief's §11 — including the explicit
+admission of which machinery is *chosen rather than scientifically necessary* —
+is the best thing in either document and is kept as `PRD.md` §11, extended to
+cover the new borrowings.
+
+### B2 · The enumeration argument · kept
+`PRD.md` §3.1 and §4.1 keep the brief's framing, including the warning not to
+write "internals versus behavior." Strictly better than the handoff's softer
+positioning sentence.
+
+### B3 · Tool/experiment separation · kept
+The brief's §8 — the tool is data-in/directive-out, generation is how *we*
+validate and is not part of what ships — has no handoff equivalent and is what
+makes the artifact citable. Kept whole, with the output schema extended to carry
+the generality, causal and gate fields the handoff's axis card had.
+
+### B4 · Retrospective validation mode · kept
+Brief-only (§8.4). The answer to "how does a user without a simulator falsify a
+directive." Kept.
+
+### B5 · Adapter interface, and refusing to design it early · kept
+Brief-only, including the instruction to build it by refactoring *after* SimLingo
+works. Kept, and it is why Step 11 is near the end.
+
+### B6 · The second paper · kept
+Brief-only §19. Kept verbatim in substance.
+
+### B7 · Run the dangerous baseline early · kept and strengthened
+The brief's instinct — run rollout-free activation statistics in October, not
+November, because if it wins the compute story collapses — is kept and made
+structural: it is **Step 6**, before the corpus is built, with an explicit stop
+condition. `PRD.md` §9.3 B7, §13.
+
+### B8 · Interestingness-sampler confound · kept
+A real catch the handoff does not address as such. Relevant to Mode A only, so it
+travels with the deferred mode. The audit adds detail: withholding means
+filtering route directories, and VQA/commentary/dreamer labels leak the withheld
+concept. `PRD.md` §9.1.
+
+### B9 · Non-goals · kept, extended
+The brief's §18 list kept, plus the handoff's "never state a target as a result"
+rule, which exists because the inherited documents are full of aspirational
+figures presented as findings.
+
+---
+
+## C. Substantive changes — reasoned, reversible
+
+### C1 · Gap planting: Mode A → Mode B · applied · **biggest change**
+The brief assumed withholding plus re-fine-tuning, and made delete-vs-regenerate
+its blocking open decision. The handoff's correction: **withheld data does not
+reliably cause failures, because policies generalize.** A sealed key can name a
+gap where performance is normal; discovery correctly finds nothing; the headline
+number then measures the planting procedure. Silent failure.
+
+**Resolution:** Mode B (novel-by-construction, released checkpoint, ~0 GPU-h for
+planting) is the default. Mode A is documented as the gold standard and deferred
+to a strengthening experiment. The **efficacy check** applies in both modes and is
+the real fix. `PRD.md` §9.1.
+
+Consequences: the brief's open decision #1 (fine-tune cost in SUs) stops blocking;
+#2 (delete vs regenerate) travels with Mode A; #3 (sampler distortion) likewise.
+
+### C2 · Efficacy check and decoys · applied
+Not in the brief at all. A candidate becomes a gap only on ≥20pp uplift, ≥2×
+ratio, Fisher p < 0.01, ≥30 rollouts — with the number of candidates tried
+reported, and re-confirmation at scoring. Decoys added so "novelty" cannot
+masquerade as "failure." `PRD.md` §9.1.
+
+### C3 · Baselines: 3 → 7 · applied
+The brief had three and, per the handoff's correction #17, dropped two the team
+had previously mandated (Random, Human taxonomy) plus two reviewers will ask for
+(input-embedding, detector-embedding). Now B1–B7 with one optional, each tied to
+the specific objection it closes. `PRD.md` §9.3.
+
+### C4 · Describability: human raters → automated gate · applied
+The brief specified sampling axes, rendering top episodes, and a human rater
+labelling interpretability. The handoff's objection: unscalable, and reviewers
+read it as cherry-picking.
+
+**Resolution:** automated two-model gate with a held-out AUROC ≥ 0.70 threshold
+and — the load-bearing part — a **description-shuffle control whose pass rate is
+the gate's measured false-positive rate.** Without it a gate that passes
+everything looks like a gate. Human spot-check retained as sanity, not as metric.
+`PRD.md` §9.2.
+
+### C5 · Outcome tree re-tiered · applied
+The brief's worst case was "axes not recoverable." The handoff demotes that to
+middle and makes **"harness invalid"** the new worst case.
+
+**Resolution:** adopted, because it is right — a negative result about probing is
+publishable; a broken measuring instrument is not. This is also why validity is
+tested first and cheaply. `PRD.md` §5.
+
+### C6 · Action-residual orthogonalization · applied
+The brief *identified* the risk (holding out "night rain" may separate for
+trivial pixel reasons). The handoff supplies the fix: regress action-query states
+on pooled visual tokens, keep the residual. Note the corollary — residualized
+variants are *expected* to miss perceptual control gaps, so harness validity uses
+the non-residualized variant. `PRD.md` §9.2.
+
+### C7 · Three rollout pools · applied
+The brief had one undifferentiated corpus. Nominal / dev / test, with blinding
+only on test, is what makes "sweep freely" and "blind result" compatible at once.
+`PRD.md` §9.2.
+
+### C8 · Serving stack, Ray, image-edit reimplementation · partly reversed
+The brief approved all three explicitly as infrastructure chosen for team
+learning, and said so honestly rather than inventing a justification — the right
+instinct.
+
+**Initially all three were cut**, on the grounds that the team-learning rationale
+was written for five people and there are two, and that on Savio parallel rollout
+fan-out is what a job array does — the brief's own stated justification for the
+serving stack.
+
+**Reversed for Ray, 2026-10-01, on instruction.** Ray is back, and it is better
+placed in the brief's own "wanted but not scientifically necessary" category than
+cut outright. Its standing justification: one orchestration layer across rollout
+fan-out, the layer sweep and the baseline matrix, with retries and failure
+handling we would otherwise hand-roll, and fan-out code that stays portable off
+Savio — which matters because NRP is the documented fallback and §8 commits the
+tool to running elsewhere. A job array remains the fallback, and §17.2 carries the
+operational caveat: Ray inside a Slurm allocation interacts badly with
+`savio_lowprio` preemption, so tasks must be idempotent, and if it fights us for
+more than a day we fall back.
+
+**Still cut:** the serving stack (with Ray doing fan-out it has no remaining
+justification, by the brief's own accounting) and re-implementing the image-edit
+baseline (the sim-rendered B4 variant is cheaper *and* fairer in simulation, so it
+is primary). Both reversible on the same terms. `PRD.md` §6.1, §11, §17.2.
+
+### C9 · Workstreams and blinded roles → sequential steps · superseded by you
+The brief had five workstreams with directory ownership; the handoff had five
+blinded roles P1–P5 with a sole key holder. **Both dropped** per your
+instruction: realistically two people, so numbered steps with specs, stepped
+through one at a time.
+
+What is preserved from the blinding design is **mechanical, not social**: hash
+commitment before the test pool exists, frozen method tags, one scoring run, key
+revealed only after specs and causal checks are committed, CI check on sealed
+imports. Credibility comes from timestamped git commitments, not from who knew
+what. Pretending to separation of duties with two people would be theatre.
+`PRD.md` §9.1, §13.
+
+### C10 · Reproduction test before fine-tuning · applied
+New gate not in the brief: an axis must reproduce (≥2× nominal failure rate and
+≥30%) before it earns a fine-tune. Also rescues unmatched axes as *validated
+natural axes* rather than counting them as errors. `PRD.md` §9.4.
+
+### C11 · Matched-volume controls for the closed loop · applied
+The brief measured failure-rate reduction on the target axis. Without
+matched-volume controls that cannot distinguish "targeting worked" from "more data
+helped." Six controls added, including an oracle upper bound built from the true
+predicates. `PRD.md` §9.4.
+
+### C12 · Lossless replay inputs · applied
+Store the exact preprocessed model input for every frame that may be replayed.
+Without it the causal checks are not reproducible. JPEG is for gate thumbnails
+only. `PRD.md` §12.1.
+
+### C13 · Statistical protocol · applied
+Bootstrap resamples **routes**, not rollouts, since rollouts within a route are
+correlated; the "best method" selection is re-made inside every replicate;
+per-gap results always reported because with 2–3 interactional gaps the result is
+conditional on which gaps were planted. `PRD.md` §10.3, §13.1.
+
+### C14 · Fail2Drive training prohibition · clarified
+The brief stated the rule but left an ambiguity: §4.5 forbade training on F2D
+assets while §13 Workstream A said to bring SimLingo up *in the Fail2Drive build*
+and §10.1 made F2D numbers a reproduction target.
+
+**Resolution:** three explicit consequences written out — evaluating is fine,
+using the build and toolbox is fine, **closed-loop fine-tuning targets must be
+gaps we authored ourselves.** F2D-derived gaps are discovery-and-evaluation-only.
+`PRD.md` §4.7.
+
+### C15 · Track A dropped · applied
+The repo's earlier dual-track framing (a text knowledge system alongside the
+policy work) is out, consistent with the brief, which never had it. Flagged in
+non-goals because if the course requires a text deliverable that is a
+conversation to have early. `PRD.md` §18.
+
+---
+
+### C16 · SAE expansion ratio · **closed in the brief's favour**
+See D1 below, now resolved. Dr. VLA App. B.1 / Table 6 / Fig. 4 confirm expansion
+ratio **1**, with the explicit reason: larger ratios give substantially more dead
+features at robotics dataset scale with similar interpretability. The brief's
+warning not to "fix" this stands and is quoted in `PRD.md` §12.2. 8×–32× is an
+ablation. The handoff was wrong.
+
+### C17 · Memorization filter demoted to an ablation · new, 2026-10-01
+Both source documents said to adopt Dr. VLA's memorization filter before ranking
+SAE latents. Step 0 found a reason not to.
+
+Their classifier calls a feature memorized when it fires about once per episode
+across a coherent but small subset of the data. **That is a description of a
+planted gap** — one cut-in per route, in 4–8% of the pool. Filtering on it would
+plausibly delete the features we are hunting. Compounding it: the classifier was
+fit on 30 hand-labeled *manipulation* features, and only 0.45%–10.81% of features
+come out general, so it is aggressive and its transfer to driving is unproven.
+
+**Resolution:** filter off by default, on as an ablation, both reported. If we
+ever want it as a default, relabel ~30 driving features and refit. `PRD.md` §9.2,
+§4.3.
+
+This is the first place we knowingly depart from "adopt rather than invent"
+(§4.3), and the justification is that our use inverts theirs: they filter to find
+*general* features; we are hunting something memorized-looking by construction.
+
+### C18 · B7 needs our own definition · new, 2026-10-01
+`PRD.md` §9.3 credited "memorized-feature concentration as the gap signal" to
+Dr. VLA. **They never propose that.** The four statistics are theirs; using their
+concentration as a gap signal is our construction, so it needs a written
+definition — how concentration is measured, over what partition, how it ranks
+into axes — committed before Step 6, or B7 is not a fair baseline.
+
+Related, and uncomfortable: by C17's logic a planted gap looks memorized, so a
+statistic built to find memorized features may be *unusually* good at finding our
+gaps. **B7 may be stronger than we want**, at zero rollout cost. That raises the
+stakes on running it at Step 6 rather than later. `PRD.md` §9.3.
+
+**Update 2026-10-09: defined and frozen** in `docs/steps/b7-gap-signal.md`
+before any activation was opened. Writing it exposed a contradiction: §9.3 says
+"over the training data", but the warning above holds only over the test pool,
+because Mode B gaps are absent from the training data. Both are kept: B7 is the
+training-data version, "B7-pool" runs the same statistics over the test pool
+with no outcome labels, and either one can trigger Step 6's stop condition. The
+concentration score is a fixed equal-weight formula rather than Dr. VLA's fitted
+classifier (C17 explains why that classifier is not trusted here). Axis members
+are restricted to failing rollouts, as every method's are, because scoring
+compares axes with a gap's failing rollouts.
+
+**Update 2026-10-15: τ_on rechecked against the PDF** (arXiv 2603.19183v2,
+App. C.1, Eqs. 6–12, p. 15), as `docs/steps/b7-gap-signal.md` asked at sign-off.
+Two differences from the frozen spec and `src/baselines/activation_stats.py`:
+(1) Eq. 7 is a **hysteresis**: a feature switches on when its activation exceeds
+τ_on = 0.1 but switches off only when it is exactly 0, otherwise keeping its
+previous state; the spec and code use plain `activation > τ_on` per frame.
+(2) The active-episode set E⁺ (coverage, and the averages in Eqs. 9–12) is the
+episodes where the feature is ever **> 0**, not > τ_on. With a TopK SAE inactive
+latents are exactly 0, so the two readings differ in onset count and run length.
+Eqs. 8 and 10–12 otherwise match the code's readings 2, 3 and 5. Correcting B7 to
+the paper is a sign-off decision; B7-pool numbers produced before it are labelled
+pre-correction. **Resolved 2026-10-16:** Chris signed off on correcting to the paper;
+`activation_stats.py` now implements the hysteresis and E⁺ > 0.
+
+### C19 · Vision encoder freezing is our deviation, not SimLingo's recipe · new
+`PRD.md` §9.4 and §12.3 described "vision encoder frozen" as SimLingo's own
+recipe. **It is not.** Paper §4.2: *"We fully finetune all components besides the
+LLM for which we use LoRA."* The encoder is trained.
+
+**Resolution:** freezing is kept as our repair-step choice, with a stated reason —
+a repair that retrains the encoder can fix a failure by shifting perception, which
+costs more and muddies the claim that we repaired the *decision* the axis names —
+but it is now labeled a deviation. Run an unfrozen arm if the frozen one underfits.
+`PRD.md` §9.4, §12.3.
+
+### C20 · Step 1 runs CARLA from the release tarball, not a container · new, 2026-10-05, pending review
+`docs/steps/01-smallest-rollout.md` stage 1.1 plans a CARLA 0.9.15 container, with
+"build from the CARLA release tarball directly" as its fallback. **We start with
+the fallback.** No published Apptainer recipe for 0.9.15 was found; the closest
+attempt (carla-simulator/carla#4256, 0.9.11 on a Compute Canada cluster) failed on
+a read-only image, and the official image has open Vulkan failures on newer hosts
+(#8079). Upstream SimLingo's own `setup_carla.sh` runs the tarball on the host.
+
+**Resolution (proposed):** `adapters/simlingo/setup_savio.py` unpacks the pinned,
+checksummed tarball and maps under `.runtime/carla-linux`, and `run_savio.py`
+runs `CarlaUE4.sh -RenderOffScreen` on the GPU node. If host Vulkan fails, set
+`carla.container` in `configs/cluster/savio.yaml` and the same tree runs inside
+the official image. The done-condition's "in the container" is the part this
+changes; reproducibility comes from the pinned tarball checksum instead.
+
+Related finding: `savio_lowprio` is not associated with `ic_cdss170fall`, so
+`PRD.md` §17.2's lowprio fan-out does not apply. Fan-out uses the `*_ica` QoS.
+
+### C21 · Dev pool size and practice-gap construction · new, 2026-10-09, pending review
+`PRD.md` §13 sizes the Step 4 dev pool at "a couple hundred rollouts" and the
+§17.3 table at 600–1,000. **We run 190 first** and add about 200 more only if
+the layer choice is unstable under resampling (`docs/steps/04-dev-pool-and-layer-sweep.md`).
+Ranking 49 layer-site pairs does not need a thousand episodes, and the methods
+of Step 7 can grow the pool later.
+
+Practice gaps are held to the efficacy check but **not** to Mode B absence from
+the training data. Their job is to give methods a known answer on dev, so they
+must actually fail; the novelty claim is the sealed gaps' job. Step 2's results
+removed the easy candidates: stock weather presets barely move SimLingo's
+failure rate (night 24%, fog or heavy rain 31%, clear day 29%), and every
+preset, including the daytime dust storm, is in its collection data. P1 (dust
+storm at night) happens to be a Mode B region anyway; P2 (an occluded pedestrian
+at night) is a conjunction of two factors that each leave SimLingo unharmed, and
+is not claimed to be absent from training.
+
+### C22 · Step 3's replay condition in bfloat16 · new, 2026-10-09, pending review
+`PRD.md` §13 Step 3 is done when a replayed frame reproduces the logged
+waypoints to within 1e-3 m. On Savio's CUDA bfloat16 the replay is bit-exact
+against itself across jobs but 1–3 rounding steps away from the live log
+(`docs/WHAT_BROKE.md`, 2026-10-09). **Proposed:** the condition becomes "replay
+is bit-exact against replay, in the logged dtype", because the causal checks
+(§9.2) compare an intervened replay with an un-intervened one and never with the
+live log. Step 4 proceeds on this proposal; if it is rejected, Step 4's data is
+unaffected, since the sweep reads logged activations and never replays.
+
+### C23 · The efficacy check's sample size and unit of analysis · new, 2026-10-12, pending review
+`PRD.md` §9.1 passes a gap on uplift ≥ 20 points, ratio ≥ 2, Fisher p < 0.01
+and at least 30 rollouts in the slice. Both Step 4 practice gaps failed it
+(`docs/WHAT_BROKE.md`, 2026-10-12), and a review of the design found three
+problems with the check itself:
+
+- **Underpowered.** Exact power, assuming independent rollouts, 30 per arm:
+  against a 15% neighbourhood (the dev pool's measured failure rate), a gap that
+  truly fails 40% passes 23% of the time and one that fails 50% passes 54%.
+  At 60 per arm the same gaps pass 64% and 93%. Against a 5% neighbourhood,
+  30 per arm gives 69% and 91%.
+- **Pairing ignored.** P1's slice and neighbourhood are the same 30 routes under
+  different weather, P2's the same 30 setups at night and noon. Fisher treats
+  the arms as unrelated, so route-to-route difficulty stays in the noise.
+- **Pseudoreplication.** P2's 30 rollouts come from 5 base routes. Variants of
+  one route are not independent, so Fisher overstates the evidence and one hard
+  route can pass a gap.
+
+**Proposed:** keep the uplift and ratio thresholds; require about 60 rollouts per
+arm, drawn from at least 30 distinct base routes; pair each slice rollout with a
+neighbourhood rollout on the same base route and test with McNemar's exact test
+on the pairs (p < 0.01), so the base route is the unit. Prefer neighbourhoods
+with a low background failure rate, since that is where the check has power.
+Multiplicity across candidates stays handled as §9.1 already says: report the
+count tried and re-confirm on the scoring pool. Until this is accepted, §9.1's
+rule stands and Step 5 pilots are sized under it.
+
+**2026-10-13, sizing adopted for pilots, rule still pending.** Jerry approved
+sizing pilots by C23 while Chris reviews; the verdict of record stays §9.1's
+Fisher rule, and `src/harness/efficacy.py` reports both. One consequence found
+in doing so: **no single-family interactional gap can meet "at least 30 distinct
+base routes" on Bench2Drive-220,** which has 5 routes per scenario family (P2's
+family has 5). Such a gap needs either routes cut from SimLingo's long training
+or validation routes (114 DynamicObjectCrossing scenarios in
+`routes_validation.xml`), a gap defined across several families that share a
+mechanism, or a relaxed base-route floor. The first pilot under C23, P3 dense
+fog by day, is perceptual and applies to any route, so it avoids the problem.
+
+### C24 · Gap pilots check the treatment and shuffle run order · new, 2026-10-12, pending review
+Two additions to the §9.1 procedure, neither of which changes its thresholds:
+
+- **Manipulation check before efficacy.** P1's dust storm rendered as plain
+  darkness on Savio, which was noticed by eye, not by any check
+  (`docs/WHAT_BROKE.md`, 2026-10-09). Every perceptual gap pilot first confirms,
+  on the first frames of a few slice routes on Savio's renderer, that the camera
+  image differs from the neighbourhood in the intended way. The measure and its
+  threshold are per gap and written into the gap's spec before the pilot runs;
+  not coded until Step 5's pilot generator exists.
+- **Shuffled run order.** The Step 4 array ran its roles in blocks (P1 slice,
+  background, P2 slice, P2 neighbourhood), so each slice ran at other times and
+  on other nodes than its neighbourhood. `scripts/route_sample.sbatch` now runs
+  routes in `route_run.run_order`'s seeded shuffle (`05979cb`). Arrays submitted
+  before that commit map task indices to config order; rerun those by route id.
+
+### C25 · The VLM failure-taxonomy baseline becomes required · new, 2026-10-12, pending review
+`PRD.md` §9.3 lists a VLM-captioning baseline (cluster captions of failure clips)
+as optional. Gupta, Ciftci and Bansal (`PRD.md` §4.12) published it, ran it on
+dashcam crashes, and showed it closes the loop: taxonomy-targeted data cut
+failures from 46% to 18% against 34% for uniform data. It needs no access to the
+policy's internals, so it is now the first answer a reviewer gives to "did you
+need the internals?", ahead of Domino (B5).
+
+**Proposed:**
+
+- **B8, failure taxonomy from logs.** A pinned VLM writes one structured
+  explanation per failure window (front camera clip plus the logged-observation
+  summary the describability gate already builds, never scenario labels); the
+  explanations are embedded and clustered; clusters rank by size into axes
+  under the same budget as every method. VLM calls only, no extra rollouts.
+- **A B8-targeted arm in the §9.4 controls**, at matched frames and GPU-hours,
+  so the closed loop answers whether internals target data better than logs do.
+- **B8 and the describability gate use different vision models.** B8's axes are
+  made of VLM descriptions, so the gate's model would pass them by construction
+  if it were the same model.
+
+### C26 · Narrow the novelty claim to what is still unclaimed · new, 2026-10-12, pending review
+The sweep of 2026-10-12 (`docs/step0-trackA-findings.md`) found that two parts of
+the `PRD.md` §5 claim have been published separately. SPHINX closes the loop from
+a driving policy's internals (BeamNG, per-decision concepts, named critical
+scenes). Gupta et al. discover failure modes without supervision and show that
+targeted data beats uniform data. Motzkus & Bernhard are the first SAEs on an
+end-to-end driving model, open-loop. No paper was found that scores failure
+discovery for a sequential policy against planted training-data gaps.
+
+**Proposed:**
+
+- Add log-based VLM taxonomies (C25) to the list of things §5 says our axes beat.
+- Lead the pitch with the harness, meaning planted gaps with a sealed key and an
+  efficacy check for closed-loop policies, and put the method comparison second.
+  The harness is the unclaimed part, and building it is hard: both Step 4
+  practice gaps failed efficacy (C23), which is plausibly why nobody has
+  published one. If the harness works, it is a contribution whichever method wins.
+- In the paper, describe our method as a corpus-level, failure-conditioned
+  contrast with no factor list or scene set. Never describe it as "the first to
+  close the loop from internals" or "the first SAEs in driving".
+
+### C27 · Three discovery checks borrowed from 2026 papers · new, 2026-10-12, pending review
+Each paper names a way §9.2's discovery could fool itself. All three checks run
+on dev and cost no rollouts.
+
+- **A shared "trouble ahead" direction.** COAST finds failure representations
+  share structure across tasks. Failure-versus-success diffing may rank one
+  generic pre-failure direction (hard braking, a close hazard) first for every
+  gap, matching none and spending the axis budget. Report each top axis's
+  cosine with the pooled failure-minus-success direction, and run a variant
+  that projects that direction out before ranking. **Correction, 2026-10-15:**
+  projecting out the failure-minus-success direction zeroes every latent's
+  mean difference between the same two groups, so that variant can find
+  nothing. The dev variant implemented instead caps a latent's and an axis's
+  share of failing rollouts (`max_failure_share` in
+  `src/discovery/contrastive.py`); the catch-all axis it targets was measured
+  on 2026-10-15 (`docs/WHAT_BROKE.md`).
+- **Route memorization.** Motzkus & Bernhard found that larger dictionaries
+  memorize scenarios. A latent that encodes which base route a frame came from
+  would look like a gap, because a gap is a set of routes. For every SAE, report
+  how well base-route identity decodes from its latents on held-out frames, and
+  treat high decodability as a reason to shrink the dictionary. This is
+  consistent with expansion ratio 1 (C16).
+- **Retrospective separability.** An OpenVLA probe separated failures at AUROC
+  0.972 but raised 3.32 warnings per clean episode, with fitting and evaluation
+  sharing resets. In the describability gate, "held-out rollouts" must come from
+  base routes not used to find the axis, and each axis reports its firing rate
+  on clean routes.
+
+### C28 · Overnight choices for Steps 6 and 7 on dev · new, 2026-10-15, pending review
+Made by the agent while Jerry slept, under his instruction to work through the
+steps; each is reversible and none touches the sealed key.
+
+- **The SAE trains on the Step 5 pilots' per-token data only** (P4 screen and
+  pilot, P5 and P6 screens), since the two dev waves predate per-token capture.
+  That is dev data, so `PRD.md` §9.2's "unlabeled dev and test activations"
+  holds in spirit; the test pool does not exist yet. Outcome labels are never
+  used to train it. It runs at layers 10 and 14 with §12.2's full k sweep and
+  six seeds.
+- **Contrastive diffing works on SAE latents**, a frame's latent being its
+  maximum over the 30 driving-query tokens. Its other open readings (failure
+  window when there is no collision, success-window placement, firing at 0.1,
+  merging) are listed in `src/discovery/contrastive.py` for sign-off, as B2's
+  and B7's are.
+- **A passing screen launches its full pilot automatically**
+  (`scripts/step5_continue.sbatch`), within Jerry's SU budget, so Savio login
+  drops do not stall the runs. The screen rule itself was fixed before each
+  screen ran.
+- **The dev evaluation scores every method against P4**, the one practice gap
+  that passed. The numbers guide method development and are not results.
+
+### C29 · B3 runs without expert action error · new, 2026-10-15, pending review
+`PRD.md` §9.3 defines B3 as clustering on action error versus the expert,
+kinematics and infraction type. **The rollouts log no expert action**, so the
+first block cannot be computed without running PDM-Lite alongside every rollout.
+
+**Proposed:** B3 v1 clusters failing rollouts on the 3 s before failure
+(kinematics and the logged state list, the same features the probe-residual
+method gets) plus infraction type (`docs/steps/b3-behavioral.md`). If PDM-Lite
+is run alongside the test pool, waypoint error versus the expert joins B3 as one
+more feature block, decided before scoring. Without it B3 is weaker on failures
+where the car's motion looks normal but its plan is wrong, which is a reason to
+add the block before the go/no-go read, not a reason to wait for it now.
+
+### C30 · B4's factor list committed before sealed-gap design · new, 2026-10-15
+`PRD.md` §9.3 requires B4's factor list to be written from public sources and
+hash-committed before gap candidates are chosen. **Committed as
+`configs/baselines/b4_factors_v1.yaml` (commit `dc84f8b`, tag `b4-factors-v1`),
+sha256 `4bca7f8538659172fb773b59762900e2d7643a615bc7d26ede356495a1349ef2`**,
+before any sealed candidate existed. 12 factors, 18 non-nominal levels, each with
+a log-decidable membership predicate. Practice gaps P1–P6 are public dev data, so
+a list naming their factors is fair: a practitioner would name them too.
+
+Choices made in writing it, open to Chris's review only as a **v2** (a v2 written
+after sealed candidates exist must be reported as such): native renders on 30
+paired base routes per level, reusing dev measurements of already-measured levels
+(full C23 sizing for 18 levels would cost about 9,000 SU); the ODD standards
+(ISO 34503, BSI PAS 1883) were not read, so they are not cited.
+The yaml's header comment says 2026-10-16; the date was 2026-10-15 (commit time
+is the record, and the file is not edited after hashing).
+
+### C31 · Decoy acceptance: a tolerance with a test, not a hard 5-point band · new, 2026-10-18 (Chris)
+PRD §9.1 asks each decoy for "a failure rate within 5 percentage points of its neighbourhood". On a
+60-pair pilot that rule rejects a truly harmless decoy surprisingly often. With about 11 discordant pairs
+(a typical count at SimLingo's 20-30% base failure rate), staying within 3 pairs of an even split has
+probability about 0.77 under no effect. So roughly one harmless decoy in four fails by chance alone.
+
+New rule, for every decoy pilot started after 2026-10-18: a decoy passes if |uplift| <= 10 points
+**and** McNemar p > 0.2 on its paired 60-pair pilot. Uplift is the slice failure rate minus the
+neighbourhood failure rate. A decoy judged before this date keeps the verdict it got under the old rule,
+so no result is rescued after the fact. Cost: the rule admits a decoy with a true effect of up to
+about 10 points. Decoys are scored on hit rate, not as gaps, so that is acceptable.
+`PRD.md` §9.1; the arithmetic is the binomial with n = 11 and p = 1/2.
+
+**Reversed in part, 2026-10-23 (Chris):** the grandfather clause above is dropped. One rule now applies to
+every decoy, including the one judged before 2026-10-18, which failed the old band and passes this rule
+(its slice failed *less* often than its neighbourhood). This is a change made after that decoy's result was
+seen, and the paper reports it under both rules. Why it is still sound: the reason for the rule is the
+false-rejection arithmetic above, not that decoy's outcome; choosing which planted regions to keep from
+efficacy pilots is the protocol itself; and no method has touched the test pool, so the choice cannot
+favour any method. A single rule across all decoys is also simpler to preregister than two.
+
+### C32 · A blind-spot control: rear-ended while stopped · new, 2026-10-21 (Jerry), pending review (Chris)
+Proposal, not built. Some failures have a cause the policy cannot perceive. SimLingo has one forward camera
+(mounted at x = -1.5 m, fov 110), so a vehicle driving into the stopped ego from behind is invisible to it
+until contact. No training data fixes that, so a method that names it as a data gap is wrong. Motivation:
+Kurse et al. 2025 (*Multimodal Transportation* 4:100186, read 2026-10-21) report that 50% of 628 California
+DMV crashes involving automated vehicles were rear-end impacts and 39% happened while the AV was stopped.
+Their data has no exposure denominator, so these are shares, not risks.
+
+It is not a PRD §9.1 decoy: a decoy is handled fine (C31), and this fails by construction. Proposed as a
+third category, a **blind-spot control**: an axis whose members are mostly blind-spot rollouts counts as a
+false attribution, reported as a blind-spot hit rate beside the decoy hit rate.
+
+It traps activation methods too. A failing window ends at the first infraction
+(`src/discovery/contrastive.py`), so every blind-spot window shows the ego stopped at a red light, while
+success windows sit at random positions. A "stopped at a red light" latent then looks failure-linked to
+contrastive diffing, as "stationary" will to B3. A method passes only by comparing each failure with
+non-failing rollouts in the same situation, which the neighbourhood routes supply.
+
+Mechanics, if accepted: a scenario `RearEndWhileStopped`, appended to the route as P5's is
+(`pilot_routes.py`). Once the ego has stood still for 2 s (scenario_runner's `StandStill`), place a vehicle
+25 m behind it in its lane (`Waypoint.previous`) and drive it at 8 m/s along the lane with collision
+avoidance off (`ConstantVelocityAgentBehavior` with `ignore_vehicles`) until contact or 10 s. Base routes:
+`VanillaSignalizedTurnEncounterRedLight`, where the ego stops at a red by design. Neighbourhood: the same
+route without the vehicle. Bench2Drive scores the contact as `collisions_vehicle`, so the route fails.
+Manipulation check: contact at ego speed below 0.1 m/s in at least 4 of the first 5 slice routes. Efficacy
+is near certain, so a 10-pair screen checks only the mechanics.
+
+Open: whether Chris accepts the category, and whether to score it before any method uses
+situation-matched controls.
+
+### C33 · CI off by default · new, 2026-10-31 (Jerry), pending review (Chris)
+`PRD.md` §14 makes the sealed-key guard a CI check. Jerry turned the whole workflow off:
+`.github/workflows/ci.yml` now runs only when started by hand (`workflow_dispatch`), with every check left in
+place. Until it is turned back on, the guard, config check, lint, typecheck and tests are enforced only by
+running them before a commit (`CLAUDE.md`, "Before running anything"). The sealed key matters from Step 8;
+re-enable CI, or replace it with a pre-commit hook, before the test pool is sealed. To re-enable, restore
+`on: [push, pull_request]`.
+
+### C34 · How the study's end is read and reported · new, 2026-11-04 (agent, under Jerry's order to finish the study), pending review (Chris)
+Written before the amended P20 screen was read, so the wording cannot be chosen from its result.
+
+**Two end states; the report says which it reached.** A is the dev-only report: P20 read under its locked rule, the route-marker effect measured or stated as unmeasured, tables for every public gap with measured statistics, the candidate count, the list of PRD checks that never ran, and the sentence "the PRD 13.1 test was not run". B is A plus a key committed by hash, frozen tags, a blind pool scored once, causal verdicts for the top axes, and the branch that the preregistered rule names.
+
+**No 13.1 branch is claimed on dev data.** 13.1 is decided on the test pool (`PRD.md` §13), and public predicates cannot enter the key (`PRD.md` §9.1). So the public count toward 13.1's two interactional gaps is 0 by construction. The report may say "no public interactional gap met Step 5 on dev". It may not say any 13.1 branch was reached, including the negative one. A key the agent writes after seeing every method's results is not blind, and it is not called blind.
+
+**Every axis score is reported as best and median across dictionaries**, with "the best axis is chosen using the key" stated beside it. H12 is why: best 0.705, median 0.375. P19 is reported as "passes 9.1, fails Step 5's single-factor condition". Every gap's p value is read with the candidate count beside it.
+
+**P20's screen, by outcome.**
+- *Check fails, or under 8 scored pairs:* "P20 is untested." The candidate stays open and the count does not rise.
+- *Under 3 excess slice-only failures:* "P20 fails its screen: X against Y on N pairs." The count becomes 20. It is not read as SimLingo coping without sight of oncoming traffic, because by arithmetic the patch covers an oncoming car only in the last 16 to 32 m of a straight road.
+- *3 or more:* "P20 passes its screen", which is not a 9.1 verdict. The full pilot runs only after the cutter measures past the hazard. A later pass may mean only that a patch hurts, which is P4 again, so B4's occlusion level is measured with it.
+
+**H13 said a failed screen leaves the remaining SU unspent, when 1041 SU were left.** Jerry has since raised the budget to 10000 and asked for the study to be finished, so a further candidate may run, under its own protocol locked first. Unspent SU stays an acceptable outcome: SU is not spent to fill a gap only Chris can close.
+
+### C35 · Route markers: `--debug 2` against the evaluator's default · new, 2026-11-04, draft, pending review (Jerry, Chris)
+`adapters/simlingo/route_run.py:165` passes `--debug 2`, added in `cb474a7` (2026-10-02) and moved in `a134c93`. It draws route points and scenario trigger points into the world, and the policy camera films them (`docs/WHAT_BROKE.md`, 2026-11-03). `PRD.md` does not mention the flag. The evaluator's default is 0. SimLingo's `start_eval_simlingo.py` passes no `--debug` and its `collect_dataset_slurm.py:28` passes `--debug=0` (read from the pinned source). So §10.1's published scores and the training images probably have no markers; that the published runs used these launchers is inferred. The effect on driving is unmeasured.
+
+**Proposed. Nothing changes until this is reviewed.**
+
+1. `--debug 2` stays for running work, so no pool mixes settings while the question is open.
+2. H14 (`docs/research/experiments/h14-route-markers/protocol.md`) measures the effect first. For it, `evaluator_command` reads `simulator.debug_level` from the rollout config with a default of 2, which puts the setting into the new configs' hashes and leaves the old configs and hashes alone.
+3. After H14, the blind pool runs at `--debug 0` under every verdict, because that is the benchmark's default and the setting a reader can reproduce. If dev work must carry over to it, H14's offline activation measure or a recapture has to support that first.
+
+**Alternatives.** Moving to 0 now costs no SU, but it leaves every earlier result with an unknown offset and splits the dev pool across two settings. `--debug 1` does not help, because it draws the same markers (`route_scenario.py:93`).
+
+### C36 · Step 8's tag order, with one tag already placed · new, 2026-11-04 (agent), pending review (Chris and Jerry)
+`docs/steps/08-seal-generate-score.md` asks for its tags in order. `b4-factors-v1`, its third, already exists ahead of the first two, because the B4 factor list was committed before any sealed gap was designed (C30). `harness/PREREGISTRATION.md` therefore reads "in this order, except tag 3". Moving the tag would date the factor list later and weaken what C30 protects, so it stays.
+
+### C37 · Preprocessing and M2 before `methods-frozen-v1` · new, 2026-11-06 (agent), pending review (Chris)
+Four dev runs on public throwaway keys show that method scores move with preprocessing that `PRD.md` §9.2 leaves open, and that M2 as configured cannot find even a planted group. These are measured, but they are dev only, and the best axis is chosen using the key.
+
+- **Mean removal moves scores on both pools.** On H12's pool, H18's shuffle control, which removes little more than the success-frame mean (its fit explains 0.008), lifts B7-pool on P19 from a median of 0.372 to 0.666 and M1 raw on P19 from 0.375 to 0.447. On H1's pool (H20), it lifts B7-pool on P8 from 0.215 to 0.364 and lowers M1 raw on P4 from 0.353 to 0.265. `sae.py` already centres each frame on its own features, so the dataset mean is a separate step.
+- **Vision residualization helps P19 and hurts P4.** M1 raw on P19 goes from a median of 0.375 to 0.540 (H15), and H18's controls show the full gain needs the visual fit. M1 raw on P4 goes from 0.353 to 0.155 on H1's pool (H20), as PRD 9.2 expects for a perceptual gap.
+- **M2 recovers nothing it should.** A planted 25-failure group is found under none of 16 HDBSCAN settings (H19), so M2's zero on every pool is uninformative.
+
+**Proposed. Nothing changes until this is reviewed.**
+1. `methods-frozen-v1` names the dataset-mean step explicitly, with or without it, before any test-pool outcome is read, and reports both variants as PRD 9.2 already asks for residualization.
+2. B7-pool is frozen with the same preprocessing as the method it is compared against, so condition 2 cannot be won or lost by a centring choice.
+3. M2 is either fixed and shown to recover a planted group on dev, or named as a method with no verified power, beside its scores.
+
+**Alternatives.** Freezing the plain variant as it is, which leaves both a known lever and B7's sensitivity to it unreported. Dropping M2, which loses PRD 9.2's third method.
+
+### C38 · An evaluation built on Fail2Drive's pairs · new, 2026-11-07 (agent, at Jerry's request), pending review (Chris and Jerry)
+Step 5 has not closed on 20 public candidates. The one interactional gap that passed PRD 9.1 (P19) fails the single-factor condition. The sealed set has no passing interactional gap (Chris, issue 8). The Step 8 pool at the PRD's scale costs about 6,950 SU at the low end (PRD §17.3), more than the 4,547 left (measured 2026-11-06). H21 drives all 100 Fail2Drive pairs with activation capture for about 700 SU (estimate). Fail2Drive is a published benchmark where each generalization route adds one unseen scenario to its base twin's road.
+
+**Proposed. Nothing changes until this is reviewed.**
+1. **Gaps.** The gaps are Fail2Drive categories that pass a screen on H21: at least 3 excess slice-only failures. With 5 or 10 pairs per category they stay screens. No category is called a PRD 9.1 gap, and the report says the gaps were chosen on the same pairs it scores. They are public, so this is a frozen-method evaluation, not a blind one, and the report says so beside every result.
+2. **Freeze first.** No discovery method reads H21's shards until a tag `methods-frozen-f2d-v1` exists, kept apart from Step 8's `methods-frozen-v1` (C36). It names the primary method, the primary preprocessing including C37's mean step, the dictionaries and this scoring rule. Driving outcomes can be read before then, because they choose the gaps, not the methods.
+3. **Score.** Jaccard recovery against each passing category's failing set stays the primary reading, as in PRD 10.2 and 13.1, because it is the only measure that penalises an axis too broad to mean anything. A per-pair reading goes beside it. For pairs where the generalization route failed and its twin did not, a pair is a hit when an axis holds the generalization route and not its twin, and that axis's Jaccard with the category's failing set is at least 0.3. Axes are chosen by the method's own rank, never by the key. B1 and B7 are both matched to the method's axis sizes. Comparisons bootstrap over categories, re-select the best method and best baseline in every replicate as 13.1 does, and report best and median across dictionaries (C34).
+4. **B2 is a ceiling, not a rival.** Fail2Drive's scenario names are the labels, so the scenario-list baseline recovers every category by construction. The claim becomes that activations find these failures without being told the scenario.
+5. **Chris's sealed gaps** are a held-out check only if a pool for them is funded, since generating one is the cost this proposal avoids. Without that funding they are not scored.
+
+**What this gives up.** Blindness: the categories are known in advance, and the freeze limits that without removing it. Discovery of unknown failures: this tests recovery of known ones. PRD 13.1's two-interactional-gap branch: it cannot be read on public gaps, so the report claims no 13.1 branch (C34).
+
+**Alternatives.** Keep the current Step 5 and wait for Chris's new sealed candidates. Stop at end state A, the dev-only report.
+
+## D. Open contradictions
+
+### D1 · SAE expansion ratio · **CLOSED 2026-10-01**
+Resolved in the brief's favour: expansion ratio **1**. See C16. No longer open.
+
+### D2 · Gap portfolio size · open
+Brief: 3–5 gaps, budget-bound by fine-tune cost. Handoff: 4–6 plus 2 decoys,
+budget-bound by rollout throughput. With Mode B the binding constraint is rollout
+throughput and Savio's SU rate, neither of which is measured yet. Closes at
+**Step 1**. `PRD.md` §16.2.
+
+### D3 · Primary discovery method · open by design
+Both documents say sweep rather than guess. But one method must be *named primary*
+before the test pool is generated, because the random baseline's set sizes and the
+closed-loop target rule both key off it. Closes at **Step 7**. `PRD.md` §16.5.
+
+### D4 · Savio operational unknowns · open, partly closed 2026-10-05
+Partition names are now known (`configs/cluster/savio.yaml`, from `sacctmgr`). SU charging rate for GPU jobs, max wall time, storage quota. The
+brief flagged all four; the handoff's cost estimates were sized for NRP hardware
+and do not transfer. Ask the program contact. `PRD.md` §17.4.

@@ -1,0 +1,46 @@
+# adapters/
+
+One directory per policy. Each adapter exposes the same three things to the rest
+of the system (`PRD.md` §8.2):
+
+1. **Rollouts** — run the policy in its environment, return per-episode
+   observation/action sequences.
+2. **Activations** — per-timestep internal state at a specified hook point,
+   mean-pooled over tokens by default.
+3. **Success labels** — a per-episode binary or scalar outcome.
+
+## Read this before writing an interface
+
+**`PRD.md` §8.2 says explicitly not to design this interface up front.** Build it
+by refactoring *after* SimLingo works. The reasoning, from the original brief:
+designing the abstraction first means spending the early weeks on abstraction
+rather than on a working system, and the interface you guess will be wrong in ways
+you cannot see until one real policy runs end to end.
+
+So: `adapters/simlingo/` should be concrete, specific, and slightly ugly. The
+generalisation is Step 11, and it is a refactor, not a design.
+
+## The contract, as it stands
+
+What an adapter hands the rest of the system is already concrete: one shard per
+rollout, specified and checked in `src/harness/shards.py`. SimLingo's export
+(`simlingo/export_activations.py`) conforms, and a test holds it to that. The
+stub's job is to show a policy nobody here wrote can meet the same contract.
+
+## Current state
+
+- `simlingo/` — **in progress.** See `docs/steps/adapter-simlingo-brief.md` for
+  what is in scope right now and what is deliberately not.
+- `stub/` — **working** (`stub_adapter.py`). A two-layer numpy policy on a toy
+  road, fitted to an expert, with one planted gap (fog makes pedestrians look
+  15 m further away). It imports nothing from this repository and writes shards
+  that meet the contract. `tests/test_stub_adapter.py` runs probe-residual and B3
+  on it end to end on CPU, and checks that probe-residual recovers the planted gap
+  (measured: best Jaccard 0.82 at layer 1). This is what makes the generality claim
+  credible. The cross-model check on a second real policy is still Step 11.
+
+## Hard constraint
+
+Adapters depend only on `harness/` interfaces, never on each other
+(`PRD.md` §14). An adapter that imports from another adapter has made the
+interface untestable.
